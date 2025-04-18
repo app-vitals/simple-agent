@@ -38,16 +38,9 @@ The agent will include the following core features:
 - Stateful conversation context management
 - Structured command parsing with clear help system
 
-### Command Execution
-- Run shell commands in a controlled environment
-- Capture and format command output
-- Handle errors and provide helpful feedback
-
-### File Operations
-- Read files with proper error handling
-- Write content to files safely
-- Create patch-style edits to existing files
-- Understand basic file types and formats
+### Tools
+- **Command Execution**: Run commands with output capture and error handling
+- **File Operations**: Read, write, and patch files with robust error handling
 
 ### LLM Integration
 - Connect to external AI models (via LiteLLM)
