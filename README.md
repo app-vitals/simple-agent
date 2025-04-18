@@ -1,98 +1,71 @@
 # Simple Agent
 
-A CLI AI agent built on Unix philosophies.
+[![CI](https://github.com/app-vitals/simple-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/app-vitals/simple-agent/actions/workflows/ci.yml)
+
+A CLI AI agent built on Unix philosophies that provides AI assistance through a natural command-line interface.
 
 ## Guiding Principles
 
-This project adheres to a set of core principles inspired by Unix philosophy:
+This project follows Unix philosophy principles:
 
-- **Do one thing well** - Focused on providing AI assistance through a clean CLI interface
-- **Programs that work together** - Designed to integrate with standard Unix tools and pipes
-- **Everything is a file** - Using standard file formats for configuration and data
-- **Plain text as interface** - Using readable, text-based inputs and outputs
-- **Modularity** - Building from simple, well-defined components
-- **Simplicity** - Keeping the design minimal and avoiding unnecessary complexity
-- **Transparency** - Making behavior clear and predictable
-- **Clarity over cleverness** - Prefer explicit, readable code over clever tricks
-- **Solve real problems** - Build tools that address actual needs
-- **Optimize for maintainability** - Write code your future self will thank you for
-- **Design for extensibility** - Create useful abstractions that enable growth
+- **Do one thing well** - AI assistance through a clean CLI interface
+- **Programs that work together** - Integration with standard Unix tools
+- **Modularity** - Simple, well-defined components
+- **Simplicity** - Minimal design, avoid complexity
+- **Plain text** - Text-based interface for everything
 
-## Agent Interaction Principles
-
-For effective human-agent interaction, we embrace these additional principles:
-
-- **Focused scope** - Handle one clear task at a time rather than attempting too much
-- **Ask, don't guess** - Clarify user intent through questions rather than assumptions
-- **Alignment through dialogue** - Maintain shared understanding between user and agent
-- **Prefer accuracy over speed** - Get it right the first time to avoid backtracking
-- **Explicit over implicit** - Make actions and reasoning transparent to the user
-- **Less is more** - Provide concise, relevant responses without unnecessary complexity
+Additional agent interaction principles:
+- **Focused scope** - One task at a time
+- **Ask, don't guess** - Clarify intent through questions
+- **Less is more** - Concise, relevant responses
 
 ## Features
 
-The agent will include the following core features:
-
-### Core Agent Loop
-- Interactive command-line dialogue with the user
+- Natural AI-first interaction - just type your request
+- Slash commands for system operations (`/help`, `/exit`)
+- Command execution and file operations when needed
 - Stateful conversation context management
-- Structured command parsing with clear help system
-
-### Tools
-- **Command Execution**: Run commands with output capture and error handling
-- **File Operations**: Read, write, and patch files with robust error handling
-
-### LLM Integration
-- Connect to external AI models (via LiteLLM)
-- Structured data exchange with LLM APIs
-- Manage API keys and configuration securely
+- Claude API integration via LiteLLM
 
 ## Development
 
-This project uses [uv](https://github.com/astral-sh/uv) for Python package management.
-
-### Running Commands
-
-We use the `uv run` approach instead of activating the virtual environment:
+This project uses [uv](https://github.com/astral-sh/uv) for package management.
 
 ```bash
-# Run the main application
-uv run python main.py
-
 # Install dependencies
 uv add <package-name>
 
-# Run tests (when added)
-uv run pytest
-
-# List installed packages
-uv run pip list
+# Run code quality tools
+./lint.sh  # Black, Ruff, MyPy
+./test.sh  # Pytest with 90% coverage requirement
 ```
 
-### Code Quality
+Continuous integration runs on all PRs and pushes to main.
 
-We maintain code quality using the following tools:
-
-- **Black** - Code formatting
-- **Ruff** - Linting and import sorting
-- **MyPy** - Static type checking
-- **Pytest** - Testing with pytest-mock and pytest-cov
-
-Run all linters with a single command:
+## Usage
 
 ```bash
-# Run the lint script (formats and checks code)
-./lint.sh
-
-# Run tests
-./test.sh
-```
-
-## Installation
-
-```bash
-# Install from source
-git clone https://github.com/username/simple-agent.git
+# Install
+git clone https://github.com/app-vitals/simple-agent.git
 cd simple-agent
 uv pip install -e .
+
+# Set API key
+export ANTHROPIC_API_KEY="your-api-key-here"
+
+# Run
+python -m simple_agent
+```
+
+Example interaction:
+```
+> Tell me about the Unix philosophy
+[Processing...]
+The Unix philosophy is a set of design principles...
+
+> /help
+[Shows help information]
+
+> /exit
+[Exits the agent]
 ```
