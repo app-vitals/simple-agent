@@ -1,6 +1,5 @@
 """Tests for the tools module."""
 
-
 from simple_agent.tools import (
     execute_tool_call,
     get_tool_descriptions,

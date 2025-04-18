@@ -128,11 +128,15 @@ class LLMClient:
                     )
                     self.console.print(f"[yellow]Arguments:[/yellow]\n{args_display}")
 
-                    # Use provided input_func or fall back to built-in input
-                    confirm_func = input_func or input
-                    confirmation = confirm_func(
-                        "[yellow]Confirm execution? (y/n)[/yellow] "
-                    )
+                    # Use provided input_func or use console prompt with proper formatting
+                    if input_func:
+                        confirmation = input_func("Confirm execution? (y/n) ")
+                    else:
+                        # Rich console properly handles the formatting
+                        self.console.print(
+                            "[yellow]Confirm execution? (y/n)[/yellow]", end=" "
+                        )
+                        confirmation = input()
 
                     if confirmation.lower() not in ["y", "yes"]:
                         # User rejected the tool call

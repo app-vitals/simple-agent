@@ -223,7 +223,7 @@ def test_tool_calls_user_confirmation(client: LLMClient, mocker: MockerFixture) 
 
     # Verify confirmation was requested
     mock_input.assert_called_once()
-    assert "y/n" in mock_input.call_args[0][0].lower()
+    assert "confirm" in mock_input.call_args[0][0].lower()
 
     # Verify result
     assert result == "Command executed"
