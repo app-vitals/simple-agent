@@ -1,6 +1,5 @@
 """Tests for the LLM client module."""
 
-
 import pytest
 from pytest_mock import MockerFixture
 
