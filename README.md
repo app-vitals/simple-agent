@@ -76,12 +76,16 @@ We maintain code quality using the following tools:
 - **Black** - Code formatting
 - **Ruff** - Linting and import sorting
 - **MyPy** - Static type checking
+- **Pytest** - Testing with pytest-mock and pytest-cov
 
 Run all linters with a single command:
 
 ```bash
 # Run the lint script (formats and checks code)
 ./lint.sh
+
+# Run tests
+./test.sh
 ```
 
 ## Installation

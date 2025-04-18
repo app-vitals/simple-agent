@@ -26,6 +26,7 @@ def main() -> None:
 
     # Run the agent
     agent = Agent()
+
     try:
         agent.run()
     except KeyboardInterrupt:

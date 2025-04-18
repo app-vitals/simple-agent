@@ -1,5 +1,7 @@
 """Core agent loop implementation."""
 
+from collections.abc import Callable
+
 from rich.console import Console
 
 from simple_agent.llm.client import LLMClient
@@ -14,8 +16,16 @@ class Agent:
         self.console = Console()
         self.llm_client = LLMClient()
 
-    def run(self) -> None:
-        """Run the agent's main loop."""
+    def run(self, input_func: Callable[[str], str] | None = None) -> None:
+        """Run the agent's main loop.
+
+        Args:
+            input_func: Function to use for getting input, defaults to built-in input
+                        Useful for testing
+        """
+        if input_func is None:
+            input_func = input
+
         self.console.print(
             "[bold green]Simple Agent[/bold green] ready. Type 'exit' to quit."
         )
@@ -23,7 +33,7 @@ class Agent:
         while True:
             # Get input from user with proper EOF (Ctrl+D) handling
             try:
-                user_input = input("> ")
+                user_input = input_func("> ")
             except EOFError:
                 # Handle Ctrl+D (EOF)
                 print()  # Print newline for clean exit

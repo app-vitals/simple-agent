@@ -13,6 +13,9 @@ dependencies = [
 dev = [
     "black>=25.1.0",
     "mypy>=1.15.0",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "pytest-mock>=3.14.0",
     "ruff>=0.11.6",
 ]
 
@@ -62,9 +65,16 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["simple_agent"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+pythonpath = ["."]
+addopts = "--cov=simple_agent --cov-report=term-missing --cov-fail-under=90"
+
 [tool.lint-all]
 commands = [
     "black .",
     "ruff check --fix .",
-    "mypy simple_agent/"
+    "mypy simple_agent/ tests/"
 ]

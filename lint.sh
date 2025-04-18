@@ -15,6 +15,6 @@ echo -e "${YELLOW}=== Running linter (ruff) ===${NC}"
 uv run ruff check --fix .
 
 echo -e "${YELLOW}=== Running type checker (mypy) ===${NC}"
-uv run mypy simple_agent/
+uv run mypy simple_agent/ tests/
 
 echo -e "${GREEN}✅ All linters passed!${NC}"
