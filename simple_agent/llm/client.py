@@ -130,13 +130,17 @@ class LLMClient:
 
                     # Use provided input_func or use console prompt with proper formatting
                     if input_func:
-                        confirmation = input_func("Confirm execution? (y/n) ")
+                        confirmation = input_func("Confirm execution? (Y/n) ")
                     else:
                         # Rich console properly handles the formatting
                         self.console.print(
-                            "[yellow]Confirm execution? (y/n)[/yellow]", end=" "
+                            "[yellow]Confirm execution? (Y/n)[/yellow]", end=" "
                         )
                         confirmation = input()
+
+                    # Empty input (just Enter) defaults to yes
+                    if confirmation == "":
+                        confirmation = "y"
 
                     if confirmation.lower() not in ["y", "yes"]:
                         # User rejected the tool call
