@@ -3,6 +3,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
+from simple_agent.config import config
 from simple_agent.llm.client import LLMClient
 
 
@@ -10,6 +11,8 @@ from simple_agent.llm.client import LLMClient
 def client(monkeypatch: pytest.MonkeyPatch) -> LLMClient:
     """Create a client for testing."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test_key")
+    # Need to manually update config since it's loaded at import time
+    config.llm.api_key = "test_key"
     return LLMClient()
 
 
@@ -21,11 +24,15 @@ def test_client_init(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Test with environment variable
     monkeypatch.setenv("ANTHROPIC_API_KEY", "env_key")
+    # Need to manually update config since it's loaded at import time
+    config.llm.api_key = "env_key"
     client = LLMClient()
     assert client.api_key == "env_key"
 
     # Test with no API key
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    # Need to manually update config
+    config.llm.api_key = None
     client = LLMClient()
     assert client.api_key is None
 
@@ -56,7 +63,7 @@ def test_send_message_success(client: LLMClient, mocker: MockerFixture) -> None:
 
     assert result == "test response"
     mock_completion.assert_called_once_with(
-        model="anthropic.claude-3-haiku-20240307",
+        model=config.llm.model,
         messages=[{"role": "user", "content": "test message"}],
         api_key="test_key",
     )
@@ -89,7 +96,7 @@ def test_send_message_with_context(client: LLMClient, mocker: MockerFixture) -> 
 
     # Check the model and API key were passed correctly
     call_args = mock_completion.call_args[1]
-    assert call_args["model"] == "anthropic.claude-3-haiku-20240307"
+    assert call_args["model"] == config.llm.model
     assert call_args["api_key"] == "test_key"
 
     # Check that the message was included in the call

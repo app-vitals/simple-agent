@@ -51,8 +51,10 @@ cd simple-agent
 uv venv
 uv pip install -e .
 
-# Set API key
-export ANTHROPIC_API_KEY="your-api-key-here"
+# Configure environment variables
+cp .env.example .env
+# Edit .env with your API key
+nano .env
 
 # Run
 python -m simple_agent

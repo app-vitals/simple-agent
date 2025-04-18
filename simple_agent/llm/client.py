@@ -1,9 +1,9 @@
 """LLM client for model integration."""
 
-import os
-
 import litellm
 from rich.console import Console
+
+from simple_agent.config import config
 
 
 class LLMClient:
@@ -16,7 +16,7 @@ class LLMClient:
             api_key: Optional API key, if not provided will look for an environment variable
         """
         self.console = Console()
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        self.api_key = api_key or config.llm.api_key
 
         # Configure LiteLLM
         litellm.drop_params = True  # Don't send unnecessary params
@@ -42,9 +42,9 @@ class LLMClient:
             messages = context or []
             messages.append({"role": "user", "content": message})
 
-            # Call the model
+            # Call the model using config
             response = litellm.completion(
-                model="anthropic.claude-3-haiku-20240307",
+                model=config.llm.model,
                 messages=messages,
                 api_key=self.api_key,
             )
