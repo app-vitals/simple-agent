@@ -25,6 +25,11 @@ jobs:
     - name: Install uv
       run: |
         pip install uv
+    
+    - name: Setup virtual environment
+      run: |
+        uv venv
+        echo "$GITHUB_WORKSPACE/.venv/bin" >> $GITHUB_PATH
         
     - name: Install dependencies
       run: |
@@ -32,13 +37,13 @@ jobs:
     
     - name: Check formatting and style (black and ruff)
       run: |
-        uv run black --check .
-        uv run ruff check .
+        black --check .
+        ruff check .
         
     - name: Check type hints (mypy)
       run: |
-        uv run mypy simple_agent/ tests/
+        mypy simple_agent/ tests/
         
     - name: Run tests with coverage
       run: |
-        uv run pytest --cov=simple_agent --cov-fail-under=90
+        pytest --cov=simple_agent --cov-fail-under=90
