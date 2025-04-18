@@ -24,20 +24,27 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install .[dev]
+        pip install -e .[dev]
+        # Explicitly install tools to ensure they're available
+        pip install black ruff mypy pytest pytest-cov
+        # Debug path
+        echo "PATH=$PATH"
+        which python
+        which pip
+        pip list
     
     - name: Check formatting (black)
       run: |
-        black --check .
+        python -m black --check .
         
     - name: Check linting (ruff)
       run: |
-        ruff check .
+        python -m ruff check .
         
     - name: Check type hints (mypy)
       run: |
-        mypy simple_agent/ tests/
+        python -m mypy simple_agent/ tests/
         
     - name: Run tests with coverage
       run: |
-        pytest --cov=simple_agent --cov-fail-under=90
+        python -m pytest --cov=simple_agent --cov-fail-under=90
