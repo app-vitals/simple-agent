@@ -2,10 +2,12 @@
 
 import json
 from collections.abc import Callable
+from typing import Any
 
 from rich.console import Console
 
 from simple_agent.core.schema import AgentResponse, AgentStatus
+from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 from simple_agent.llm.client import LLMClient
 
 HELP_TEXT = """
@@ -95,6 +97,8 @@ class Agent:
         self.context: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
         self.console = Console()
         self.llm_client = LLMClient()
+        self.tool_handler = ToolHandler()
+        self.tools = get_tools_for_llm()
 
     def run(self, input_func: Callable[[str], str] | None = None) -> None:
         """Run the agent's main loop.
@@ -103,8 +107,12 @@ class Agent:
             input_func: Function to use for getting input, defaults to built-in input
                         Useful for testing
         """
+        # Set up input function for agent and tool handler
         if input_func is None:
             input_func = input
+
+        # Update tool handler with input function
+        self.tool_handler.input_func = input_func
 
         self.console.print(
             "[bold green]Simple Agent[/bold green] ready. Type '/exit' to quit. Type '/help' for help."
@@ -181,20 +189,84 @@ class Agent:
         # Update context with user message
         self.context.append({"role": "user", "content": message})
 
-        # Send to LLM, passing the input_func for tool confirmations
+        # Send to LLM for the initial response
         self.console.print("[bold]Processing...[/bold]")
-        # For testing compatibility, only add input_func if explicitly needed
-        # This keeps the old unit tests working
-        response = self.llm_client.send_message(message, self.context)
+        response = self._send_llm_request(self.context)
 
         if not response:
             self.console.print("[bold red]Error:[/bold red] Failed to get a response")
             return
 
+        # Extract content and check for tool calls
+        content, tool_calls = self.llm_client.get_message_content(response)
+
+        # If there are tool calls, process them
+        if tool_calls:
+            # Add the assistant's response with tool calls to context
+            assistant_message = {"role": "assistant"}
+            assistant_message.update(response.choices[0].message.model_dump())
+            self.context.append(assistant_message)
+
+            # Process tool calls
+            self.context = self.tool_handler.process_tool_calls(
+                tool_calls, self.context
+            )
+
+            # Get a follow-up response after tool execution
+            self.console.print("[bold]Getting final response...[/bold]")
+            follow_up_response = self._send_llm_request(self.context)
+
+            if not follow_up_response:
+                self.console.print(
+                    "[bold red]Error:[/bold red] Failed to get a follow-up response"
+                )
+                return
+
+            # Extract the final content
+            content, _ = self.llm_client.get_message_content(follow_up_response)
+
+            if not content:
+                self.console.print(
+                    "[bold red]Error:[/bold red] Empty response after tool execution"
+                )
+                return
+
+            # Update response for parsing
+            response = follow_up_response
+
+        # Process and display the response
+        self._process_llm_response(content, response)
+
+    def _send_llm_request(self, messages: list[dict]) -> Any | None:
+        """Send a request to the LLM.
+
+        Args:
+            messages: The conversation context
+
+        Returns:
+            The LLM response object or None if an error occurs
+        """
+        return self.llm_client.send_completion(
+            messages=messages,
+            tools=self.tools,
+            response_format=AgentResponse,
+        )
+
+    def _process_llm_response(self, content: str, response: Any) -> None:
+        """Process and display the LLM response.
+
+        Args:
+            content: The text content from the LLM
+            response: The full response object
+        """
+        if not content:
+            self.console.print("[bold red]Error:[/bold red] Empty response from LLM")
+            return
+
         # Parse the JSON response
         try:
             # Parse the JSON content into our AgentResponse
-            json_response = json.loads(response)
+            json_response = json.loads(content)
             structured_response = AgentResponse.model_validate(json_response)
 
             # Display the message to the user
@@ -207,9 +279,15 @@ class Agent:
                     self.console.print(
                         f"[bold blue]Next action:[/bold blue] {structured_response.next_action}"
                     )
+
+                    # Continue with the next action
                     self.console.print(
-                        "[dim]Type 'continue' to proceed with this action[/dim]"
+                        f"[dim]Next Action: {structured_response.next_action}[/dim]"
                     )
+                    continuation_prompt = (
+                        f"Please continue by {structured_response.next_action}"
+                    )
+                    self._handle_ai_request(continuation_prompt)
 
             elif structured_response.status == AgentStatus.ASK:
                 # Agent needs user input
@@ -219,12 +297,12 @@ class Agent:
                     )
 
             # Keep the raw JSON response in the context for the LLM
-            self.context.append({"role": "assistant", "content": response})
+            self.context.append({"role": "assistant", "content": content})
 
         except json.JSONDecodeError:
             # Fallback for non-JSON responses
-            self.console.print(response)
-            self.context.append({"role": "assistant", "content": response})
+            self.console.print(content)
+            self.context.append({"role": "assistant", "content": content})
 
         # Manage context size - keep at most 10 messages
         if len(self.context) > 10:

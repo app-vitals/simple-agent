@@ -10,7 +10,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Minimum required coverage percentage
-MIN_COVERAGE=80
+MIN_COVERAGE=90
 
 echo -e "${YELLOW}=== Running tests with coverage (minimum ${MIN_COVERAGE}%) ===${NC}"
 
