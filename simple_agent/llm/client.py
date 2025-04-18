@@ -8,6 +8,7 @@ import litellm
 from rich.console import Console
 
 from simple_agent.config import config
+from simple_agent.core.schema import AgentResponse
 from simple_agent.tools import (
     execute_tool_call,
     get_tool_descriptions,
@@ -56,12 +57,13 @@ class LLMClient:
             messages = context.copy() if context else []
             messages.append({"role": "user", "content": message})
 
-            # Call the model using config
+            # Call the model using config with structured response format
             response = litellm.completion(
                 model=config.llm.model,
                 messages=messages,
                 tools=self.tools,
                 tool_choice="auto",
+                response_format=AgentResponse,  # Use Pydantic model directly
                 api_key=self.api_key,
             )
 
@@ -113,7 +115,9 @@ class LLMClient:
                 arguments = json.loads(tool_call.function.arguments)
 
                 # Check if this tool requires confirmation
-                if requires_confirmation(tool_name):
+                requires_confirm = requires_confirmation(tool_name)
+
+                if requires_confirm:
                     # Format arguments for user-friendly display
                     args_display = "\n".join(
                         [
@@ -184,6 +188,7 @@ class LLMClient:
                 messages=messages,
                 tools=self.tools,
                 api_key=self.api_key,
+                response_format=AgentResponse,  # Use Pydantic model directly
             )
 
             content = final_response.choices[0].message.content

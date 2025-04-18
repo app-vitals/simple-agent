@@ -1,9 +1,11 @@
 """Core agent loop implementation."""
 
+import json
 from collections.abc import Callable
 
 from rich.console import Console
 
+from simple_agent.core.schema import AgentResponse, AgentStatus
 from simple_agent.llm.client import LLMClient
 
 HELP_TEXT = """
@@ -16,8 +18,14 @@ The agent can:
 • Read and write files (when you ask it to)
 
 [bold]Special commands:[/bold]
+• [green]continue[/green]: Continue with the next action the agent has planned
 • [green]/help[/green]: Show this help message
 • [green]/exit[/green]: Exit the agent
+
+[bold]Response types:[/bold]
+• [blue]Next action[/blue]: The agent knows what to do next and can continue automatically
+• [yellow]Question[/yellow]: The agent needs more information from you
+• Normal response: The task is complete
 """
 
 SYSTEM_PROMPT = """You are Simple Agent, a command line assistant built on Unix philosophy principles.
@@ -34,8 +42,42 @@ You have the following tools available to assist users:
 - patch_file: Replace specific content in a file (requires user confirmation)
 - execute_command: Run a shell command (requires user confirmation)
 
+IMPORTANT: You MUST format all your responses as JSON following this schema:
+{
+  "message": "Your main message and analysis for the user",
+  "status": "COMPLETE|CONTINUE|ASK",
+  "next_action": "If status is CONTINUE, describe your next planned action. If status is ASK, formulate a question for the user."
+}
+
+Status values explanation:
+- COMPLETE: Task is finished, no further action needed
+- CONTINUE: You know what to do next and can proceed automatically 
+- ASK: You need user input or permission to proceed
+
+Example for a complete task:
+{
+  "message": "I've analyzed the README.md file and it shows this is a Python CLI project that implements a simple agent framework.",
+  "status": "COMPLETE",
+  "next_action": null
+}
+
+Example for an action you can continue with:
+{
+  "message": "I've listed the project files. This appears to be a Python CLI application.",
+  "status": "CONTINUE",
+  "next_action": "I'll examine README.md next to understand the project's purpose and features."
+}
+
+Example for when you need user input:
+{
+  "message": "I can see several Python files in the project.",
+  "status": "ASK",
+  "next_action": "Would you like me to focus on analyzing a specific file first, or should I start with the README.md?"
+}
+
 When helping users:
 - Focus on one task at a time
+- Keep previous context in mind when the user says "continue" or similar
 - Ask questions when clarification is needed, don't guess
 - Keep responses concise and relevant
 - Use available tools when appropriate
@@ -96,7 +138,34 @@ class Agent:
             self._show_help()
             return
 
-        # Otherwise, treat as an AI request
+        # Check for continuation command
+        if user_input.lower() in ["continue", "proceed", "go on", "go ahead"]:
+            # Look at the last assistant message to find the next action
+            for msg in reversed(self.context):
+                if msg.get("role") == "assistant":
+                    try:
+                        assistant_data = json.loads(msg.get("content", "{}"))
+                        if (
+                            "status" in assistant_data
+                            and assistant_data["status"] == "CONTINUE"
+                        ):
+                            # Found a CONTINUE status with next_action
+                            if assistant_data.get("next_action"):
+                                self.console.print(
+                                    f"[bold green]Continuing:[/bold green] {assistant_data['next_action']}"
+                                )
+                                # Create a more specific prompt based on the next_action
+                                continuation_prompt = f"Please continue by {assistant_data['next_action']}"
+                                self._handle_ai_request(continuation_prompt)
+                                return
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+
+            # If we got here, we didn't find a clear continuation action
+            self._handle_ai_request("Please continue from where you left off")
+            return
+
+        # Otherwise, treat as a regular AI request
         self._handle_ai_request(user_input)
 
     def _show_help(self) -> None:
@@ -122,11 +191,40 @@ class Agent:
             self.console.print("[bold red]Error:[/bold red] Failed to get a response")
             return
 
-        # Display the AI response
-        self.console.print(response)
+        # Parse the JSON response
+        try:
+            # Parse the JSON content into our AgentResponse
+            json_response = json.loads(response)
+            structured_response = AgentResponse.model_validate(json_response)
 
-        # Update context with AI response
-        self.context.append({"role": "assistant", "content": response})
+            # Display the message to the user
+            self.console.print(structured_response.message)
+
+            # Handle the different statuses
+            if structured_response.status == AgentStatus.CONTINUE:
+                # Agent knows what to do next
+                if structured_response.next_action:
+                    self.console.print(
+                        f"[bold blue]Next action:[/bold blue] {structured_response.next_action}"
+                    )
+                    self.console.print(
+                        "[dim]Type 'continue' to proceed with this action[/dim]"
+                    )
+
+            elif structured_response.status == AgentStatus.ASK:
+                # Agent needs user input
+                if structured_response.next_action:
+                    self.console.print(
+                        f"[bold yellow]Question:[/bold yellow] {structured_response.next_action}"
+                    )
+
+            # Keep the raw JSON response in the context for the LLM
+            self.context.append({"role": "assistant", "content": response})
+
+        except json.JSONDecodeError:
+            # Fallback for non-JSON responses
+            self.console.print(response)
+            self.context.append({"role": "assistant", "content": response})
 
         # Manage context size - keep at most 10 messages
         if len(self.context) > 10:

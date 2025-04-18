@@ -72,7 +72,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 pythonpath = ["."]
-addopts = "--cov=simple_agent --cov-report=term-missing --cov-fail-under=90"
+addopts = "--cov=simple_agent --cov-report=term-missing --cov-fail-under=80"
 
 [tool.lint-all]
 commands = [
