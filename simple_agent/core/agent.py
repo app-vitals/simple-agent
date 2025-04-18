@@ -20,13 +20,29 @@ The agent can:
 • [green]/exit[/green]: Exit the agent
 """
 
+SYSTEM_PROMPT = """You are Simple Agent, a command line assistant built on Unix philosophy principles.
+
+Follow these core principles in all interactions:
+- Do one thing well - Focus on the user's current request
+- Simplicity over complexity - Provide direct, concise answers
+- Modularity - Break down complex tasks into smaller steps
+- Plain text - Communicate clearly in text format
+
+When helping users:
+- Focus on one task at a time
+- Ask questions when clarification is needed, don't guess
+- Keep responses concise and relevant
+- Integrate with Unix tools when appropriate
+- Respect the user's time and expertise"""
+
 
 class Agent:
     """Simple agent that manages the conversation loop."""
 
     def __init__(self) -> None:
         """Initialize the agent."""
-        self.context: list[dict] = []
+        # Initialize context with system prompt
+        self.context: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
         self.console = Console()
         self.llm_client = LLMClient()
 

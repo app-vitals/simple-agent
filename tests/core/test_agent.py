@@ -3,7 +3,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from simple_agent.core.agent import HELP_TEXT, Agent
+from simple_agent.core.agent import HELP_TEXT, SYSTEM_PROMPT, Agent
 
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def agent() -> Agent:
 
 def test_agent_init(agent: Agent) -> None:
     """Test agent initialization."""
-    assert agent.context == []
+    assert agent.context == [{"role": "system", "content": SYSTEM_PROMPT}]
     assert hasattr(agent, "console")
     assert hasattr(agent, "llm_client")
 
@@ -158,7 +158,7 @@ def test_handle_ai_request_context_management(
     agent.llm_client = mocker.MagicMock()  # type: ignore
     agent.llm_client.send_message.return_value = "AI response"  # type: ignore
 
-    # Set up an initial context with system message
+    # Set up an initial context with system message (overwrite default)
     agent.context = [{"role": "system", "content": "You are a helpful assistant."}]
 
     # Add 10 exchanges to exceed the limit
