@@ -4,26 +4,40 @@ import os
 import tempfile
 from pathlib import Path
 
-from simple_agent.tools import files
+from simple_agent.tools.files import patch_file, read_files, write_file
 
 
-def test_read_file() -> None:
-    """Test reading a file."""
-    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-        temp_file.write(b"Hello, world!")
-        temp_path = temp_file.name
+def test_read_files() -> None:
+    """Test reading files."""
+    # Create a couple of temporary files
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file1:
+        temp_file1.write(b"Hello, world!")
+        temp_path1 = temp_file1.name
+
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file2:
+        temp_file2.write(b"Testing, 123!")
+        temp_path2 = temp_file2.name
 
     try:
-        # Test reading existing file
-        content = files.read_file(temp_path)
-        assert content == "Hello, world!"
+        # Test reading a single file
+        content = read_files([temp_path1])
+        assert temp_path1 in content
+        assert content[temp_path1] == "Hello, world!"
 
-        # Test reading non-existent file
+        # Test reading multiple files
+        content = read_files([temp_path1, temp_path2])
+        assert len(content) == 2
+        assert content[temp_path1] == "Hello, world!"
+        assert content[temp_path2] == "Testing, 123!"
+
+        # Test reading a mix of existing and non-existent files
         non_existent_path = "/path/that/does/not/exist.txt"
-        content = files.read_file(non_existent_path)
-        assert content is None
+        content = read_files([temp_path1, non_existent_path])
+        assert content[temp_path1] == "Hello, world!"
+        assert content[non_existent_path] is None
     finally:
-        os.unlink(temp_path)
+        os.unlink(temp_path1)
+        os.unlink(temp_path2)
 
 
 def test_write_file() -> None:
@@ -33,13 +47,13 @@ def test_write_file() -> None:
 
     try:
         # Test writing to a file
-        result = files.write_file(temp_path, "Test content")
+        result = write_file(temp_path, "Test content")
         assert result is True
         assert Path(temp_path).read_text() == "Test content"
 
         # Test writing to a non-writable location
         non_writable_path = "/root/test_file.txt"
-        result = files.write_file(non_writable_path, "Test content")
+        result = write_file(non_writable_path, "Test content")
         assert result is False
     finally:
         if os.path.exists(temp_path):
@@ -55,17 +69,17 @@ def test_patch_file() -> None:
 
     try:
         # Test successful patch
-        result = files.patch_file(temp_path, "Hello", "Hi")
+        result = patch_file(temp_path, "Hello", "Hi")
         assert result is True
         assert Path(temp_path).read_text() == "Hi, world!"
 
         # Test patch with non-existent content
-        result = files.patch_file(temp_path, "Goodbye", "Bye")
+        result = patch_file(temp_path, "Goodbye", "Bye")
         assert result is False
 
         # Test patch with non-existent file
         non_existent_path = "/path/that/does/not/exist.txt"
-        result = files.patch_file(non_existent_path, "Hello", "Hi")
+        result = patch_file(non_existent_path, "Hello", "Hi")
         assert result is False
     finally:
         os.unlink(temp_path)

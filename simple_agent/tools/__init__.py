@@ -4,20 +4,21 @@ from typing import Any
 
 # Import tool functions
 from simple_agent.tools.exec import execute_command
-from simple_agent.tools.files import patch_file, read_file, write_file
+from simple_agent.tools.files import patch_file, read_files, write_file
 
 # Tool definitions with metadata
 TOOLS: dict[str, dict[str, Any]] = {
-    "read_file": {
-        "function": read_file,
-        "description": "Read the contents of a file",
+    "read_files": {
+        "function": read_files,
+        "description": "Read the contents of one or more files in a single operation for improved efficiency",
         "parameters": {
-            "file_path": {
-                "type": "string",
-                "description": "Path to the file to read",
+            "file_paths": {
+                "type": "array",
+                "description": "List of file paths to read (for efficiency, include multiple files when needed)",
+                "items": {"type": "string"},
             }
         },
-        "returns": "Content of the file or None if an error occurs",
+        "returns": "Dictionary mapping each file path to its content or None if an error occurred",
         "requires_confirmation": False,  # Reading files doesn't modify the system
     },
     "write_file": {

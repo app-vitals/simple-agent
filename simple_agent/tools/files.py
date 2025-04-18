@@ -5,23 +5,34 @@ from pathlib import Path
 from rich.console import Console
 
 
-def read_file(file_path: str) -> str | None:
-    """Read and return the contents of a file.
+def read_files(file_paths: list[str]) -> dict[str, str | None]:
+    """Read and return the contents of one or more files.
 
     Args:
-        file_path: Path to the file to read
+        file_paths: List of paths to read (can be a single path in a list)
 
     Returns:
-        String contents of the file, or None if an error occurs
+        Dictionary mapping each file path to its contents or None if an error occurred
     """
     console = Console()
-    console.print(f"[bold blue]Reading:[/bold blue] {file_path}")
+    results: dict[str, str | None] = {}
 
-    try:
-        return Path(file_path).read_text()
-    except Exception as e:
-        console.print(f"[bold red]Error reading file:[/bold red] {e}")
-        return None
+    # Print summary if reading multiple files
+    if len(file_paths) > 1:
+        console.print(
+            f"[bold blue]Reading multiple files:[/bold blue] {len(file_paths)} files"
+        )
+
+    # Read each file
+    for path in file_paths:
+        console.print(f"[bold blue]Reading:[/bold blue] {path}")
+        try:
+            results[path] = Path(path).read_text()
+        except Exception as e:
+            console.print(f"[bold red]Error reading file:[/bold red] {e}")
+            results[path] = None
+
+    return results
 
 
 def write_file(file_path: str, content: str) -> bool:

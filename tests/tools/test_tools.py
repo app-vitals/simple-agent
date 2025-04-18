@@ -24,8 +24,8 @@ def test_get_tool_descriptions() -> None:
 
 def test_requires_confirmation() -> None:
     """Test tool confirmation requirements."""
-    # Read file shouldn't require confirmation
-    assert requires_confirmation("read_file") is False
+    # Read files shouldn't require confirmation
+    assert requires_confirmation("read_files") is False
 
     # Write file should require confirmation
     assert requires_confirmation("write_file") is True
@@ -47,6 +47,10 @@ def test_execute_tool_call() -> None:
     assert isinstance(result, str)
     assert "Error" in result
 
-    # Test read_file tool (using a mock)
-    result = execute_tool_call("read_file", {"file_path": "/not/a/real/file.txt"})
-    assert result is None  # Should return None for non-existent file
+    # Test read_files tool (using a mock)
+    result = execute_tool_call("read_files", {"file_paths": ["/not/a/real/file.txt"]})
+    assert isinstance(result, dict)  # Should return a dictionary
+    assert "/not/a/real/file.txt" in result
+    assert (
+        result["/not/a/real/file.txt"] is None
+    )  # Value should be None for non-existent file

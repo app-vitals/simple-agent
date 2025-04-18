@@ -53,11 +53,9 @@ class ToolHandler:
                 arguments = json.loads(tool_call.function.arguments)
 
                 # Check if this tool requires confirmation
-                # Skip confirmation for read operations
-                if (
-                    tool_name == "read_file"
-                    or tool_name == "execute_command"
-                    and "ls" in arguments.get("command", "")
+                # Skip confirmation for read operations and basic execute commands
+                if tool_name == "execute_command" and "ls" in arguments.get(
+                    "command", ""
                 ):
                     requires_confirm = False
                 else:
