@@ -23,8 +23,9 @@ Additional agent interaction principles:
 
 - Natural AI-first interaction - just type your request
 - Slash commands for system operations (`/help`, `/exit`)
-- Command execution and file operations when needed
+- Command execution and file operations with user confirmation
 - Stateful conversation context management
+- Tool-based interface with explicit permission model
 - Claude API integration via LiteLLM
 
 ## Development

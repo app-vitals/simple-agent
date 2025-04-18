@@ -3,7 +3,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from simple_agent.core.agent import HELP_TEXT, SYSTEM_PROMPT, Agent
+from simple_agent.core.agent import HELP_TEXT, Agent
 
 
 @pytest.fixture
@@ -14,7 +14,9 @@ def agent() -> Agent:
 
 def test_agent_init(agent: Agent) -> None:
     """Test agent initialization."""
-    assert agent.context == [{"role": "system", "content": SYSTEM_PROMPT}]
+    assert len(agent.context) == 1
+    assert agent.context[0]["role"] == "system"
+    assert "Unix philosophy" in agent.context[0]["content"]
     assert hasattr(agent, "console")
     assert hasattr(agent, "llm_client")
 

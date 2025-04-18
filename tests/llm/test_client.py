@@ -1,5 +1,7 @@
 """Tests for the LLM client module."""
 
+import json
+
 import pytest
 from pytest_mock import MockerFixture
 
@@ -55,7 +57,9 @@ def test_send_message_success(client: LLMClient, mocker: MockerFixture) -> None:
     # Create a mock response with the expected structure
     mock_response = mocker.MagicMock()
     mock_response.choices = [
-        mocker.MagicMock(message=mocker.MagicMock(content="test response"))
+        mocker.MagicMock(
+            message=mocker.MagicMock(content="test response", tool_calls=None)
+        )
     ]
     mock_completion = mocker.patch("litellm.completion", return_value=mock_response)
 
@@ -65,6 +69,8 @@ def test_send_message_success(client: LLMClient, mocker: MockerFixture) -> None:
     mock_completion.assert_called_once_with(
         model=config.llm.model,
         messages=[{"role": "user", "content": "test message"}],
+        tools=client.tools,
+        tool_choice="auto",
         api_key="test_key",
     )
 
@@ -74,7 +80,9 @@ def test_send_message_with_context(client: LLMClient, mocker: MockerFixture) -> 
     # Create a mock response with the expected structure
     mock_response = mocker.MagicMock()
     mock_response.choices = [
-        mocker.MagicMock(message=mocker.MagicMock(content="test response"))
+        mocker.MagicMock(
+            message=mocker.MagicMock(content="test response", tool_calls=None)
+        )
     ]
     mock_completion = mocker.patch("litellm.completion", return_value=mock_response)
 
@@ -98,6 +106,8 @@ def test_send_message_with_context(client: LLMClient, mocker: MockerFixture) -> 
     call_args = mock_completion.call_args[1]
     assert call_args["model"] == config.llm.model
     assert call_args["api_key"] == "test_key"
+    assert call_args["tools"] == client.tools
+    assert call_args["tool_choice"] == "auto"
 
     # Check that the message was included in the call
     assert {"role": "user", "content": "How are you?"} in call_args["messages"]
@@ -114,3 +124,106 @@ def test_send_message_error(client: LLMClient, mocker: MockerFixture) -> None:
     client.console.print.assert_called_once_with(  # type: ignore
         "[bold red]API Error:[/bold red] API error"
     )
+
+
+def test_tool_calls_handling(client: LLMClient, mocker: MockerFixture) -> None:
+    """Test handling tool calls in the response."""
+    # Mock the message content with tool calls
+    mock_tool_call = mocker.MagicMock()
+    mock_tool_call.id = "call_123"
+    mock_tool_call.function.name = "read_file"
+    mock_tool_call.function.arguments = json.dumps({"file_path": "/test/file.txt"})
+
+    mock_message = mocker.MagicMock()
+    mock_message.tool_calls = [mock_tool_call]
+    mock_message.model_dump.return_value = {
+        "content": None,
+        "tool_calls": [{"id": "call_123"}],
+    }
+
+    mock_response = mocker.MagicMock()
+    mock_response.choices = [mocker.MagicMock(message=mock_message)]
+
+    # Mock the final response after tool execution
+    mock_final_message = mocker.MagicMock()
+    mock_final_message.content = "Tool executed successfully"
+    mock_final_message.tool_calls = None
+
+    mock_final_response = mocker.MagicMock()
+    mock_final_response.choices = [mocker.MagicMock(message=mock_final_message)]
+
+    # Mock completion and tool execution
+    mock_completion = mocker.patch("litellm.completion")
+    mock_completion.side_effect = [mock_response, mock_final_response]
+
+    # Mock tool-related functions
+    mocker.patch("simple_agent.tools.execute_tool_call", return_value="File content")
+    mocker.patch("simple_agent.tools.requires_confirmation", return_value=False)
+
+    client.console = mocker.MagicMock()  # type: ignore
+
+    # Call method
+    result = client.send_message("Read a file", context=[])
+
+    # Verify result
+    assert result == "Tool executed successfully"
+
+    # Verify tool execution was attempted
+    assert (
+        mock_completion.call_count == 2
+    )  # Initial call + follow-up after tool execution
+
+    # Verify tool response was added to messages
+    second_call_messages = mock_completion.call_args_list[1][1]["messages"]
+    assert any(
+        m.get("role") == "tool" and m.get("tool_call_id") == "call_123"
+        for m in second_call_messages
+    )
+
+
+def test_tool_calls_user_confirmation(client: LLMClient, mocker: MockerFixture) -> None:
+    """Test tool calls with user confirmation."""
+    # Mock tool call that requires confirmation
+    mock_tool_call = mocker.MagicMock()
+    mock_tool_call.id = "call_456"
+    mock_tool_call.function.name = "execute_command"
+    mock_tool_call.function.arguments = json.dumps({"command": "ls -la"})
+
+    mock_message = mocker.MagicMock()
+    mock_message.tool_calls = [mock_tool_call]
+    mock_message.model_dump.return_value = {
+        "content": None,
+        "tool_calls": [{"id": "call_456"}],
+    }
+
+    mock_response = mocker.MagicMock()
+    mock_response.choices = [mocker.MagicMock(message=mock_message)]
+
+    mock_final_response = mocker.MagicMock()
+    mock_final_response.choices = [
+        mocker.MagicMock(
+            message=mocker.MagicMock(content="Command executed", tool_calls=None)
+        )
+    ]
+
+    # Mock confirmation input function to return 'y'
+    mock_input = mocker.MagicMock(return_value="y")
+
+    # Mock completion, tools, and console
+    mock_completion = mocker.patch("litellm.completion")
+    mock_completion.side_effect = [mock_response, mock_final_response]
+
+    mocker.patch("simple_agent.tools.requires_confirmation", return_value=True)
+    mocker.patch("simple_agent.tools.execute_tool_call", return_value=("stdout", "", 0))
+
+    client.console = mocker.MagicMock()  # type: ignore
+
+    # Call method with our mock input function
+    result = client.send_message("Run ls command", context=[], input_func=mock_input)
+
+    # Verify confirmation was requested
+    mock_input.assert_called_once()
+    assert "y/n" in mock_input.call_args[0][0].lower()
+
+    # Verify result
+    assert result == "Command executed"
