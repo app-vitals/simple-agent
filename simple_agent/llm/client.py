@@ -1,4 +1,4 @@
-"""API client for model integration."""
+"""LLM client for model integration."""
 
 import os
 
@@ -6,11 +6,11 @@ import litellm
 from rich.console import Console
 
 
-class ApiClient:
-    """Client for interacting with AI model APIs."""
+class LLMClient:
+    """Client for interacting with Large Language Model APIs."""
 
     def __init__(self, api_key: str | None = None) -> None:
-        """Initialize the API client.
+        """Initialize the LLM client.
 
         Args:
             api_key: Optional API key, if not provided will look for an environment variable

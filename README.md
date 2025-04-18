@@ -49,9 +49,9 @@ The agent will include the following core features:
 - Create patch-style edits to existing files
 - Understand basic file types and formats
 
-### API Integration
+### LLM Integration
 - Connect to external AI models (via LiteLLM)
-- Structured data exchange with APIs
+- Structured data exchange with LLM APIs
 - Manage API keys and configuration securely
 
 ## Development

@@ -2,7 +2,7 @@
 
 from rich.console import Console
 
-from simple_agent.api.client import ApiClient
+from simple_agent.llm.client import LLMClient
 
 
 class Agent:
@@ -12,7 +12,7 @@ class Agent:
         """Initialize the agent."""
         self.context: list[dict] = []
         self.console = Console()
-        self.api_client = ApiClient()
+        self.llm_client = LLMClient()
 
     def run(self) -> None:
         """Run the agent's main loop."""
