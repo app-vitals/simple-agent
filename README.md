@@ -50,7 +50,7 @@ The agent will include the following core features:
 - Understand basic file types and formats
 
 ### API Integration
-- Connect to external AI models (Anthropic Claude)
+- Connect to external AI models (via LiteLLM)
 - Structured data exchange with APIs
 - Manage API keys and configuration securely
 
@@ -76,8 +76,26 @@ uv run pytest
 uv run pip list
 ```
 
-This approach is preferred because:
-- No need to remember activation/deactivation
-- Works consistently in scripts and CI/CD pipelines
-- Keeps your shell environment clean
-- Requires fewer steps
+### Code Quality
+
+We maintain code quality using the following tools:
+
+- **Black** - Code formatting
+- **Ruff** - Linting and import sorting
+- **MyPy** - Static type checking
+
+Run all linters with a single command:
+
+```bash
+# Run the lint script (formats and checks code)
+./lint.sh
+```
+
+## Installation
+
+```bash
+# Install from source
+git clone https://github.com/username/simple-agent.git
+cd simple-agent
+uv pip install -e .
+```
