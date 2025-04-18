@@ -48,6 +48,7 @@ Continuous integration runs on all PRs and pushes to main.
 # Install
 git clone https://github.com/app-vitals/simple-agent.git
 cd simple-agent
+uv venv
 uv pip install -e .
 
 # Set API key
