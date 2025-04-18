@@ -15,7 +15,9 @@ MIN_COVERAGE=90
 echo -e "${YELLOW}=== Running tests with coverage (minimum ${MIN_COVERAGE}%) ===${NC}"
 
 # Run pytest with coverage
-uv run pytest --cov-fail-under=$MIN_COVERAGE
-
-# If we got here, tests passed with sufficient coverage
-echo -e "${GREEN}✅ Tests passed with sufficient coverage!${NC}"
+if uv run pytest --cov-fail-under=$MIN_COVERAGE; then
+    echo -e "${GREEN}✅ Tests passed with sufficient coverage!${NC}"
+else
+    echo -e "${RED}❌ Tests failed or coverage requirement not met!${NC}"
+    exit 1
+fi

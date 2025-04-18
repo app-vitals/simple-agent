@@ -130,3 +130,56 @@ def test_handle_ai_request(agent: Agent, mocker: MockerFixture) -> None:
 
     # Verify context was updated with AI response
     assert {"role": "assistant", "content": "AI response"} in agent.context
+
+
+def test_handle_ai_request_error(agent: Agent, mocker: MockerFixture) -> None:
+    """Test the _handle_ai_request method when LLM returns no response."""
+    # Mock the console and llm_client
+    agent.console = mocker.MagicMock()  # type: ignore
+    agent.llm_client = mocker.MagicMock()  # type: ignore
+    agent.llm_client.send_message.return_value = None  # type: ignore
+    
+    # Call the method
+    agent._handle_ai_request("Hello, AI")
+    
+    # Verify error was displayed
+    agent.console.print.assert_any_call("[bold red]Error:[/bold red] Failed to get a response")  # type: ignore
+    
+    # Verify context only has user message, not AI response
+    assert {"role": "user", "content": "Hello, AI"} in agent.context
+    assert not any(msg.get("role") == "assistant" for msg in agent.context)
+
+
+def test_handle_ai_request_context_management(agent: Agent, mocker: MockerFixture) -> None:
+    """Test the context management in _handle_ai_request method."""
+    # Mock the console and llm_client
+    agent.console = mocker.MagicMock()  # type: ignore
+    agent.llm_client = mocker.MagicMock()  # type: ignore
+    agent.llm_client.send_message.return_value = "AI response"  # type: ignore
+    
+    # Set up an initial context with system message
+    agent.context = [
+        {"role": "system", "content": "You are a helpful assistant."}
+    ]
+    
+    # Add 10 exchanges to exceed the limit
+    for i in range(10):
+        agent._handle_ai_request(f"Message {i}")
+    
+    # Verify our context is capped at 10 messages
+    assert len(agent.context) == 10
+    # The system message should be preserved at index 0
+    assert agent.context[0] == {"role": "system", "content": "You are a helpful assistant."}
+    # We should have dropped the older messages
+    assert "Message 0" not in str(agent.context)
+    
+    # Now test without a system message
+    agent.context = []
+    
+    # Add 10 exchanges to exceed the limit
+    for i in range(10):
+        agent._handle_ai_request(f"Message {i}")
+    
+    # Verify we kept only the 10 most recent messages (5 exchanges)
+    assert len(agent.context) == 10
+    assert agent.context[0]["content"] == "Message 5"
