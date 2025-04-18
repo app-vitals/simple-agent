@@ -21,30 +21,24 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     
-    - name: Install dependencies
+    - name: Install uv and dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
-        # Explicitly install tools to ensure they're available
-        pip install black ruff mypy pytest pytest-cov
-        # Debug path
-        echo "PATH=$PATH"
-        which python
-        which pip
-        pip list
+        pip install uv
+        uv pip install -e .[dev]
     
-    - name: Check formatting (black)
+    - name: Check formatting with Black
       run: |
-        python -m black --check .
+        uv run black --check --diff .
         
-    - name: Check linting (ruff)
+    - name: Check linting with Ruff
       run: |
-        python -m ruff check .
+        uv run ruff check --show-fixes .
         
-    - name: Check type hints (mypy)
+    - name: Check type hints with MyPy
       run: |
-        python -m mypy simple_agent/ tests/
+        uv run mypy simple_agent/ tests/
         
-    - name: Run tests with coverage
+    - name: Run tests with Pytest and coverage
       run: |
-        python -m pytest --cov=simple_agent --cov-fail-under=90
+        uv run pytest --cov=simple_agent --cov-report=term --cov-fail-under=90
