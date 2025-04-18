@@ -214,22 +214,21 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
     agent.tool_handler = mocker.MagicMock()  # type: ignore
     agent._process_llm_response = mocker.MagicMock()  # type: ignore
 
-    # Create initial response with tool calls
+    # Create initial response with tool calls and follow-up without tools
     mock_tool_calls = [mocker.MagicMock()]
     mock_initial_response = mocker.MagicMock()
     mock_initial_response.choices = [mocker.MagicMock()]
 
+    mock_followup_response = mocker.MagicMock()
+
     # Set up test context for simplicity
     agent.context = []
 
-    # Mock messages after tool execution
+    # Mock the processed messages after tool execution
     processed_messages = [{"role": "user", "content": "Hello"}]
     agent.tool_handler.process_tool_calls.return_value = processed_messages  # type: ignore
 
-    # Create follow-up response
-    mock_followup_response = mocker.MagicMock()
-
-    # Set up the mocks to return our responses
+    # Set up the mocks to return our responses (using the side_effect to return different values on each call)
     agent._send_llm_request = mocker.MagicMock(  # type: ignore
         side_effect=[mock_initial_response, mock_followup_response]
     )
@@ -237,17 +236,19 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
     # First response has tool calls, second doesn't
     agent.llm_client.get_message_content.side_effect = [  # type: ignore
         (None, mock_tool_calls),  # Initial response with tool calls
-        ("Final result", None),  # Followup response after tool execution
+        ("Final result", None),  # Follow-up response with no tool calls
     ]
 
     # Call the method
     agent._handle_ai_request("Hello")
 
-    # Verify LLM was called twice
+    # Verify the user message was added to context
+    assert {"role": "user", "content": "Hello"} in agent.context
+
+    # Verify LLM was called twice (once for initial, once for follow-up)
     assert agent._send_llm_request.call_count == 2  # type: ignore
 
-    # Verify tool_handler was called to process tool calls with any context
-    # The exact context is implementation-dependent and might change
+    # Verify tool_handler was called to process tool calls
     agent.tool_handler.process_tool_calls.assert_called_once()  # type: ignore
     args = agent.tool_handler.process_tool_calls.call_args[0]  # type: ignore
     assert args[0] == mock_tool_calls  # First arg should be tool_calls
@@ -255,6 +256,63 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
 
     # Verify final response was processed
     agent._process_llm_response.assert_called_once_with("Final result", mock_followup_response)  # type: ignore
+
+
+def test_handle_ai_request_with_nested_tool_calls(
+    agent: Agent, mocker: MockerFixture
+) -> None:
+    """Test handling AI request with multiple levels of tool calls."""
+    # Set up mocks
+    agent.console = mocker.MagicMock()  # type: ignore
+    agent.llm_client = mocker.MagicMock()  # type: ignore
+    agent.tool_handler = mocker.MagicMock()  # type: ignore
+    agent._process_llm_response = mocker.MagicMock()  # type: ignore
+
+    # Create responses with tool calls for multiple iterations
+    mock_tool_calls1 = [mocker.MagicMock()]
+    mock_tool_calls2 = [mocker.MagicMock()]
+    mock_response1 = mocker.MagicMock()
+    mock_response1.choices = [mocker.MagicMock()]
+    mock_response2 = mocker.MagicMock()
+    mock_response2.choices = [mocker.MagicMock()]
+    mock_final_response = mocker.MagicMock()
+
+    # Set up test context for simplicity
+    agent.context = []
+
+    # Mock the processed messages after tool executions
+    processed_messages1 = [{"role": "user", "content": "First tool result"}]
+    processed_messages2 = [{"role": "user", "content": "Second tool result"}]
+
+    # Setup tool_handler to return different results for each call
+    agent.tool_handler.process_tool_calls.side_effect = [  # type: ignore
+        processed_messages1,  # First tool execution
+        processed_messages2,  # Second tool execution
+    ]
+
+    # Set up the mocks to return our responses for each iteration
+    agent._send_llm_request = mocker.MagicMock(  # type: ignore
+        side_effect=[mock_response1, mock_response2, mock_final_response]
+    )
+
+    # Configure message content for each response
+    agent.llm_client.get_message_content.side_effect = [  # type: ignore
+        (None, mock_tool_calls1),  # First response has tool calls
+        (None, mock_tool_calls2),  # Second response also has tool calls
+        ("Final result", None),  # Final response has no tool calls
+    ]
+
+    # Call the method
+    agent._handle_ai_request("Hello")
+
+    # Verify LLM was called three times (once for initial, once for second, once for final)
+    assert agent._send_llm_request.call_count == 3  # type: ignore
+
+    # Verify tool_handler was called twice
+    assert agent.tool_handler.process_tool_calls.call_count == 2  # type: ignore
+
+    # Verify final response was processed
+    agent._process_llm_response.assert_called_once_with("Final result", mock_final_response)  # type: ignore
 
 
 def test_handle_ai_request_error(agent: Agent, mocker: MockerFixture) -> None:
@@ -345,6 +403,48 @@ def test_process_llm_response_ask(agent: Agent, mocker: MockerFixture) -> None:
     agent.console.print.assert_any_call(  # type: ignore
         "[bold yellow]Question:[/bold yellow] What would you like me to do?"
     )
+
+
+def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -> None:
+    """Test handling AI request with too many tool calls (max iterations reached)."""
+    # Set up mocks
+    agent.console = mocker.MagicMock()  # type: ignore
+    agent.llm_client = mocker.MagicMock()  # type: ignore
+    agent.tool_handler = mocker.MagicMock()  # type: ignore
+    agent._process_llm_response = mocker.MagicMock()  # type: ignore
+
+    # Create responses all with tool calls to trigger the max iterations
+    mock_tool_calls = [mocker.MagicMock()]
+    mock_response = mocker.MagicMock()
+    mock_response.choices = [mocker.MagicMock()]
+
+    # Set up test context
+    agent.context = []
+
+    # Mock the processed messages after tool execution
+    processed_messages = [{"role": "user", "content": "Tool result"}]
+    agent.tool_handler.process_tool_calls.return_value = processed_messages  # type: ignore
+
+    # Set up the mocks to always return responses with tool calls
+    agent._send_llm_request = mocker.MagicMock(return_value=mock_response)  # type: ignore
+
+    # All responses have tool calls
+    agent.llm_client.get_message_content.return_value = (None, mock_tool_calls)  # type: ignore
+
+    # Call the method
+    agent._handle_ai_request("Hello")
+
+    # Verify LLM was called the maximum number of times (5 iterations)
+    assert agent._send_llm_request.call_count == 20  # type: ignore
+
+    # Verify tool_handler was called 5 times
+    assert agent.tool_handler.process_tool_calls.call_count == 20  # type: ignore
+
+    # Verify the warning was printed
+    agent.console.print.assert_any_call("[bold yellow]Warning:[/bold yellow] Maximum tool call iterations reached")  # type: ignore
+
+    # Verify _process_llm_response was never called since we never got a complete response
+    agent._process_llm_response.assert_not_called()  # type: ignore
 
 
 def test_process_llm_response_invalid_json(agent: Agent, mocker: MockerFixture) -> None:

@@ -1,9 +1,11 @@
 """Tests for the tool handler module."""
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
+from rich.console import Console
 
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 
@@ -62,7 +64,9 @@ class TestToolHandler:
             "simple_agent.core.tool_handler.execute_tool_call",
             return_value="test result",
         )
-        handler.console = mocker.MagicMock()
+        mock_console = MagicMock(spec=Console)
+        mock_console.print = MagicMock()
+        handler.console = mock_console
 
         # Create a mock tool call
         mock_tool_call = mocker.MagicMock()
@@ -105,7 +109,9 @@ class TestToolHandler:
             "simple_agent.core.tool_handler.execute_tool_call",
             return_value="test result",
         )
-        handler.console = mocker.MagicMock()
+        mock_console = MagicMock(spec=Console)
+        mock_console.print = MagicMock()
+        handler.console = mock_console
 
         # Mock the input function to return 'y'
         mock_input = mocker.MagicMock(return_value="y")
@@ -138,7 +144,9 @@ class TestToolHandler:
             "simple_agent.core.tool_handler.requires_confirmation", return_value=True
         )
         mock_execute = mocker.patch("simple_agent.core.tool_handler.execute_tool_call")
-        handler.console = mocker.MagicMock()
+        mock_console = MagicMock(spec=Console)
+        mock_console.print = MagicMock()
+        handler.console = mock_console
 
         # Mock the input function to return 'n'
         mock_input = mocker.MagicMock(return_value="n")
@@ -167,7 +175,9 @@ class TestToolHandler:
     ) -> None:
         """Test processing tool calls with invalid arguments."""
         # Mock the console
-        handler.console = mocker.MagicMock()
+        mock_console = MagicMock(spec=Console)
+        mock_console.print = MagicMock()
+        handler.console = mock_console
 
         # Create a mock tool call with invalid JSON arguments
         mock_tool_call = mocker.MagicMock()

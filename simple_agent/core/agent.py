@@ -156,16 +156,17 @@ class Agent:
                         if (
                             "status" in assistant_data
                             and assistant_data["status"] == "CONTINUE"
+                            and assistant_data.get("next_action")
                         ):
-                            # Found a CONTINUE status with next_action
-                            if assistant_data.get("next_action"):
-                                self.console.print(
-                                    f"[bold green]Continuing:[/bold green] {assistant_data['next_action']}"
-                                )
-                                # Create a more specific prompt based on the next_action
-                                continuation_prompt = f"Please continue by {assistant_data['next_action']}"
-                                self._handle_ai_request(continuation_prompt)
-                                return
+                            self.console.print(
+                                f"[bold green]Continuing:[/bold green] {assistant_data['next_action']}"
+                            )
+                            # Create a more specific prompt based on the next_action
+                            continuation_prompt = (
+                                f"Please continue by {assistant_data['next_action']}"
+                            )
+                            self._handle_ai_request(continuation_prompt)
+                            return
                     except (json.JSONDecodeError, KeyError):
                         pass
 
@@ -189,19 +190,43 @@ class Agent:
         # Update context with user message
         self.context.append({"role": "user", "content": message})
 
-        # Send to LLM for the initial response
-        self.console.print("[bold]Processing...[/bold]")
-        response = self._send_llm_request(self.context)
+        # Process the request with tool call handling (using a loop)
+        max_iterations = 20  # Prevent infinite loops
+        iteration = 0
 
-        if not response:
-            self.console.print("[bold red]Error:[/bold red] Failed to get a response")
-            return
+        while iteration < max_iterations:
+            # Log the current step
+            if iteration == 0:
+                self.console.print("[bold]Processing...[/bold]")
+            else:
+                self.console.print(
+                    f"[bold]Processing tool result (step {iteration})...[/bold]"
+                )
 
-        # Extract content and check for tool calls
-        content, tool_calls = self.llm_client.get_message_content(response)
+            # Send to LLM
+            response = self._send_llm_request(self.context)
 
-        # If there are tool calls, process them
-        if tool_calls:
+            if not response:
+                self.console.print(
+                    "[bold red]Error:[/bold red] Failed to get a response"
+                )
+                return
+
+            # Extract content and check for tool calls
+            content, tool_calls = self.llm_client.get_message_content(response)
+
+            # If there are no tool calls, we're done
+            if not tool_calls:
+                # Process and display the final response
+                if content is not None:
+                    self._process_llm_response(content, response)
+                else:
+                    self.console.print(
+                        "[bold red]Error:[/bold red] Empty response from LLM"
+                    )
+                return
+
+            # Handle tool calls
             # Add the assistant's response with tool calls to context
             assistant_message = {"role": "assistant"}
             assistant_message.update(response.choices[0].message.model_dump())
@@ -212,30 +237,13 @@ class Agent:
                 tool_calls, self.context
             )
 
-            # Get a follow-up response after tool execution
-            self.console.print("[bold]Getting final response...[/bold]")
-            follow_up_response = self._send_llm_request(self.context)
+            # Increment iteration counter
+            iteration += 1
 
-            if not follow_up_response:
-                self.console.print(
-                    "[bold red]Error:[/bold red] Failed to get a follow-up response"
-                )
-                return
-
-            # Extract the final content
-            content, _ = self.llm_client.get_message_content(follow_up_response)
-
-            if not content:
-                self.console.print(
-                    "[bold red]Error:[/bold red] Empty response after tool execution"
-                )
-                return
-
-            # Update response for parsing
-            response = follow_up_response
-
-        # Process and display the response
-        self._process_llm_response(content, response)
+        # If we've reached the maximum iterations, warn the user
+        self.console.print(
+            "[bold yellow]Warning:[/bold yellow] Maximum tool call iterations reached"
+        )
 
     def _send_llm_request(self, messages: list[dict]) -> Any | None:
         """Send a request to the LLM.
@@ -289,12 +297,14 @@ class Agent:
                     )
                     self._handle_ai_request(continuation_prompt)
 
-            elif structured_response.status == AgentStatus.ASK:
+            elif (
+                structured_response.status == AgentStatus.ASK
+                and structured_response.next_action
+            ):
                 # Agent needs user input
-                if structured_response.next_action:
-                    self.console.print(
-                        f"[bold yellow]Question:[/bold yellow] {structured_response.next_action}"
-                    )
+                self.console.print(
+                    f"[bold yellow]Question:[/bold yellow] {structured_response.next_action}"
+                )
 
             # Keep the raw JSON response in the context for the LLM
             self.context.append({"role": "assistant", "content": content})

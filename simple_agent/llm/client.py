@@ -66,9 +66,7 @@ class LLMClient:
             self.console.print(f"[bold red]API Error:[/bold red] {e}")
             return None
 
-    def get_message_content(
-        self, response: Any
-    ) -> tuple[str | None, list | None]:
+    def get_message_content(self, response: Any) -> tuple[str | None, list | None]:
         """Extract content and tool calls from a completion response.
 
         Args:
