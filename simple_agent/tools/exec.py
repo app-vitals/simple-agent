@@ -1,6 +1,8 @@
 """Command execution tools."""
 
 import subprocess
+import sys
+from select import select
 
 from rich.console import Console
 
@@ -14,8 +16,6 @@ def execute_command(command: str) -> tuple[str, str, int]:
     Returns:
         Tuple containing (stdout, stderr, return_code)
     """
-    import sys
-    from select import select
 
     console = Console()
     console.print(f"[bold yellow]Executing:[/bold yellow] {command}")
