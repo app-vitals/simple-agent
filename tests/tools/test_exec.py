@@ -28,8 +28,8 @@ def test_execute_command() -> None:
 
 def test_execute_command_exception(mocker: MockerFixture) -> None:
     """Test the execute_command function with an exception."""
-    # Test with a command that causes a subprocess.run error
-    mocker.patch("subprocess.run", side_effect=Exception("Test exception"))
+    # Test with a command that causes a subprocess.Popen error
+    mocker.patch("subprocess.Popen", side_effect=Exception("Test exception"))
     stdout, stderr, return_code = exec.execute_command("anything")
     assert stdout == ""
     assert stderr == "Test exception"
