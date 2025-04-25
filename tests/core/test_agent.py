@@ -1,12 +1,13 @@
 """Tests for the agent module."""
 
+import contextlib
 import json
 from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 
-from simple_agent.core.agent import HELP_TEXT, Agent
+from simple_agent.core.agent import Agent
 from simple_agent.core.schema import AgentResponse
 
 
@@ -27,129 +28,30 @@ def test_agent_init(agent: Agent) -> None:
     assert hasattr(agent, "tools")
 
 
-def test_agent_run(agent: Agent, mocker: MockerFixture) -> None:
-    """Test the agent run method."""
-    # Mock the console to capture output
-    agent.console = mocker.MagicMock()  # type: ignore
+def test_agent_input_handler(agent: Agent, mocker: MockerFixture) -> None:
+    """Test that the agent properly sets up the input handler."""
+    # Mock CLI class to avoid actual CLI initialization
+    mock_cli = mocker.patch("simple_agent.cli.prompt.CLI")
 
-    # Mock _process_input to verify it's called
-    agent._process_input = mocker.MagicMock()  # type: ignore
-
-    # Create a mock input function that returns "test input" then "/exit"
-    input_values = ["test input", "/exit"]
-
-    def mock_input(prompt: str) -> str:
-        return input_values.pop(0)
-
-    # Mock tool_handler input function setter
-    agent.tool_handler = mocker.MagicMock()
-
-    # Run the agent with our mock input function
-    agent.run(input_func=mock_input)
-
-    # Verify tool_handler was updated with input_func
-    agent.tool_handler.input_func = mock_input  # type: ignore
-
-    # Verify the console was used to print the welcome message
-    agent.console.print.assert_any_call(  # type: ignore
-        "[bold green]Simple Agent[/bold green] ready. Type '/exit' to quit. Type '/help' for help."
-    )
-
-    # Verify _process_input was called with the test input
-    agent._process_input.assert_called_once_with("test input")  # type: ignore
-
-
-def test_agent_run_eof(agent: Agent, mocker: MockerFixture) -> None:
-    """Test the agent run method with EOF (Ctrl+D)."""
-    # Mock the console to capture output
-    agent.console = mocker.MagicMock()  # type: ignore
-
-    # Create a mock input function that raises EOFError
-    def mock_input(prompt: str) -> str:
-        raise EOFError()
+    # Create a mock input function
+    mock_input = mocker.MagicMock()
 
     # Mock tool_handler
     agent.tool_handler = mocker.MagicMock()
 
-    # Mock print to avoid interfering with test output
-    mocker.patch("builtins.print")
+    # Skip actual run by mocking run_interactive_loop to exit immediately
+    mock_cli.return_value.run_interactive_loop.side_effect = EOFError()
 
     # Run the agent with our mock input function
-    agent.run(input_func=mock_input)
+    with contextlib.suppress(EOFError):
+        agent.run(input_func=mock_input)
 
-    # Verify the EOF message was printed
-    agent.console.print.assert_any_call("[yellow]Received EOF. Exiting.[/yellow]")  # type: ignore
-
-
-def test_process_input_help(agent: Agent, mocker: MockerFixture) -> None:
-    """Test the _process_input method with /help command."""
-    # Mock the console to capture output
-    agent.console = mocker.MagicMock()  # type: ignore
-
-    # Mock the help method
-    agent._show_help = mocker.MagicMock()  # type: ignore
-
-    # Process help command
-    agent._process_input("/help")
-
-    # Verify show_help was called
-    agent._show_help.assert_called_once()  # type: ignore
+    # Verify tool_handler was updated with input_func
+    assert agent.tool_handler.input_func == mock_input
 
 
-def test_process_input_continue(agent: Agent, mocker: MockerFixture) -> None:
-    """Test the _process_input method with continue command."""
-    # Set up a mock context with a CONTINUE response
-    agent.context = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Help me"},
-        {
-            "role": "assistant",
-            "content": json.dumps(
-                {
-                    "message": "I can help you with that.",
-                    "status": "CONTINUE",
-                    "next_action": "I'll look up some information for you.",
-                }
-            ),
-        },
-    ]
-
-    # Mock dependencies
-    agent.console = mocker.MagicMock()  # type: ignore
-    agent._handle_ai_request = mocker.MagicMock()  # type: ignore
-
-    # Process continue command
-    agent._process_input("continue")
-
-    # Verify handle_ai_request was called with the continuation prompt
-    expected_prompt = "Please continue by I'll look up some information for you."
-    agent._handle_ai_request.assert_called_once_with(expected_prompt)  # type: ignore
-
-    # Verify console output
-    agent.console.print.assert_called_with(  # type: ignore
-        "[bold green]Continuing:[/bold green] I'll look up some information for you."
-    )
-
-
-def test_process_input_continue_no_next_action(
-    agent: Agent, mocker: MockerFixture
-) -> None:
-    """Test continue command when there's no clear next action."""
-    # Set up a context without a clear CONTINUE status
-    agent.context = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Help me"},
-        {"role": "assistant", "content": "I can help you with that."},
-    ]
-
-    # Mock dependencies
-    agent._handle_ai_request = mocker.MagicMock()  # type: ignore
-
-    # Process continue command
-    agent._process_input("continue")
-
-    # Verify handle_ai_request was called with the generic continuation prompt
-    agent._handle_ai_request.assert_called_once_with("Please continue from where you left off")  # type: ignore
+# We've covered EOF handling in test_agent_input_handler
+# and more thoroughly in the CLI tests, so this test is now redundant.
 
 
 def test_process_input_ai_request(agent: Agent, mocker: MockerFixture) -> None:
@@ -162,18 +64,6 @@ def test_process_input_ai_request(agent: Agent, mocker: MockerFixture) -> None:
 
     # Verify AI handler was called with the message
     agent._handle_ai_request.assert_called_once_with("What is the weather today?")  # type: ignore
-
-
-def test_show_help(agent: Agent, mocker: MockerFixture) -> None:
-    """Test the _show_help method."""
-    # Mock the console to capture output
-    agent.console = mocker.MagicMock()  # type: ignore
-
-    # Call show help
-    agent._show_help()
-
-    # Verify console prints the help text
-    agent.console.print.assert_called_once_with(HELP_TEXT)  # type: ignore
 
 
 def test_handle_ai_request(agent: Agent, mocker: MockerFixture) -> None:

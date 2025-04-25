@@ -3,14 +3,15 @@
 import argparse
 import sys
 
-from rich.console import Console
+from prompt_toolkit import print_formatted_text
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.styles import Style
 
 from simple_agent.core.agent import Agent
 
 
 def main() -> None:
     """Main entry point for the simple-agent CLI."""
-    console = Console()
     parser = argparse.ArgumentParser(
         description="Simple Agent - A CLI AI agent built on Unix philosophies"
     )
@@ -21,7 +22,16 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.version:
-        print("simple-agent version 0.1.0")
+        version_style = Style.from_dict(
+            {
+                "app": "ansibrightgreen",
+                "version": "ansiyellow",
+            }
+        )
+        print_formatted_text(
+            HTML("<app>simple-agent</app> <version>version 0.1.0</version>"),
+            style=version_style,
+        )
         return
 
     # Run the agent
@@ -30,8 +40,8 @@ def main() -> None:
     try:
         agent.run()
     except KeyboardInterrupt:
-        # Handle Ctrl+C with a clean exit
-        console.print("\n[yellow]Interrupted. Exiting.[/yellow]")
+        # Handle Ctrl+C with a clean exit via prompt_toolkit
+        print_formatted_text(HTML("<ansiyellow>\nInterrupted. Exiting.</ansiyellow>"))
         sys.exit(0)
 
 

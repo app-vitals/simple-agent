@@ -22,7 +22,12 @@ Additional agent interaction principles:
 ## Features
 
 - Natural AI-first interaction - just type your request
-- Slash commands for system operations (`/help`, `/exit`)
+- Enhanced interactive CLI with prompt_toolkit
+  - Command completion with Tab
+  - Multi-line input support with backslash continuation
+  - History navigation with arrow keys
+  - Syntax highlighting and styled output
+- Slash commands for system operations (`/help`, `/exit`, `/clear`)
 - Command execution and file operations with user confirmation
 - Stateful conversation context management
 - Tool-based interface with explicit permission model
@@ -30,7 +35,7 @@ Additional agent interaction principles:
 
 ## Development
 
-This project uses [uv](https://github.com/astral-sh/uv) for package management.
+This project uses [uv](https://github.com/astral-sh/uv) for package management and [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for the interactive CLI.
 
 ```bash
 # Install dependencies
@@ -43,33 +48,76 @@ uv add <package-name>
 
 Continuous integration runs on all PRs and pushes to main.
 
-## Usage
+## Installation
+
+### Option 1: Using pip (Recommended)
 
 ```bash
-# Install
+# Install directly from the repository
+pip install git+https://github.com/app-vitals/simple-agent.git
+
+# Or install in development mode from a local clone
 git clone https://github.com/app-vitals/simple-agent.git
 cd simple-agent
+pip install -e .
+```
+
+### Option 2: Using uv
+
+```bash
+# Clone the repository
+git clone https://github.com/app-vitals/simple-agent.git
+cd simple-agent
+
+# Set up a virtual environment and install
 uv venv
 uv pip install -e .
+```
 
+## Configuration
+
+```bash
 # Configure environment variables
 cp .env.example .env
+
 # Edit .env with your API key
 nano .env
+```
 
-# Run
+## Running Simple Agent
+
+Once installed, you can run Simple Agent from anywhere:
+
+```bash
+# Run the agent
+simple-agent
+```
+
+Alternatively, you can run the module directly:
+
+```bash
 python -m simple_agent
 ```
 
-Example interaction:
+## Example Interactions
+
 ```
 > Tell me about the Unix philosophy
-[Processing...]
-The Unix philosophy is a set of design principles...
+The Unix philosophy is a set of design principles that emphasizes building simple, 
+modular programs that do one thing well and work together through standard interfaces.
+
+> Write a function that calculates fibonacci numbers \
+  recursively in Python
+[Function definition with docstring and implementation]
 
 > /help
-[Shows help information]
+[Shows command help and usage information]
+
+> /clear
+[Clears the terminal screen]
 
 > /exit
 [Exits the agent]
 ```
+
+Try pressing Tab to complete commands and use Up/Down arrows to navigate through command history.

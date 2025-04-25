@@ -126,8 +126,10 @@ class TestToolHandler:
         # Process the tool call
         result = handler.process_tool_calls([mock_tool_call], [])
 
-        # Verify the user was asked for confirmation
-        mock_input.assert_called_once_with("Confirm execution? (Y/n) ")
+        # Verify the user was asked for confirmation with the updated prompt
+        mock_input.assert_called_once_with(
+            "Confirm execution of tool test_tool? [Y/n] "
+        )
 
         # Verify the result contains the tool response
         assert len(result) == 1

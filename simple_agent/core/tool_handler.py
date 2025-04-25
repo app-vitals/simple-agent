@@ -4,6 +4,9 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from prompt_toolkit import prompt
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.styles import Style
 from rich.console import Console
 
 from simple_agent.tools import (
@@ -70,17 +73,37 @@ class ToolHandler:
                         ]
                     )
 
-                    # Ask for confirmation
+                    # Display tool information
                     self.console.print(
                         f"\n[bold yellow]Tool call requested:[/bold yellow] {tool_name}"
                     )
                     self.console.print(f"[yellow]Arguments:[/yellow]\n{args_display}")
 
-                    # Use provided input_func for getting user confirmation
-                    self.console.print(
-                        "[yellow]Confirm execution? (Y/n)[/yellow]", end=" "
-                    )
-                    confirmation = self.input_func("Confirm execution? (Y/n) ")
+                    # Use input_func for tests to work, otherwise use prompt_toolkit
+                    if self.input_func != input:
+                        # For testing, use the provided input_func
+                        confirmation = self.input_func(
+                            f"Confirm execution of tool {tool_name}? [Y/n] "
+                        )
+                    else:
+                        # Create a nice prompt_toolkit confirmation prompt
+                        confirmation_style = Style.from_dict(
+                            {
+                                "tool": "ansibrightyellow bold",
+                                "prompt": "ansiyellow",
+                                "highlight": "ansibrightgreen",
+                            }
+                        )
+
+                        # HTML-formatted prompt that highlights the tool name
+                        confirm_prompt = HTML(
+                            f"<prompt>Confirm execution of tool </prompt>"
+                            f"<tool>{tool_name}</tool>"
+                            f"<prompt>? </prompt><highlight>[Y/n]</highlight> "
+                        )
+
+                        # Get confirmation using prompt_toolkit
+                        confirmation = prompt(confirm_prompt, style=confirmation_style)
 
                     # Empty input (just Enter) defaults to yes
                     if confirmation == "":

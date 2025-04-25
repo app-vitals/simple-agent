@@ -6,29 +6,10 @@ from typing import Any
 
 from rich.console import Console
 
+from simple_agent.cli.prompt import CLI
 from simple_agent.core.schema import AgentResponse, AgentStatus
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 from simple_agent.llm.client import LLMClient
-
-HELP_TEXT = """
-[bold]Simple Agent[/bold] - An AI assistant that can help with tasks
-
-Just type your questions or requests naturally.
-The agent can:
-• Answer questions
-• Run commands (when you ask it to)
-• Read and write files (when you ask it to)
-
-[bold]Special commands:[/bold]
-• [green]continue[/green]: Continue with the next action the agent has planned
-• [green]/help[/green]: Show this help message
-• [green]/exit[/green]: Exit the agent
-
-[bold]Response types:[/bold]
-• [blue]Next action[/blue]: The agent knows what to do next and can continue automatically
-• [yellow]Question[/yellow]: The agent needs more information from you
-• Normal response: The task is complete
-"""
 
 SYSTEM_PROMPT = """You are Simple Agent, a command line assistant built on Unix philosophy principles.
 
@@ -104,39 +85,22 @@ class Agent:
         self.tools = get_tools_for_llm()
 
     def run(self, input_func: Callable[[str], str] | None = None) -> None:
-        """Run the agent's main loop.
+        """Run the agent's main loop using prompt_toolkit.
 
         Args:
-            input_func: Function to use for getting input, defaults to built-in input
-                        Useful for testing
+            input_func: Function to use for getting input, only used for testing
         """
-        # Set up input function for agent and tool handler
-        if input_func is None:
-            input_func = input
+        # Update tool handler with input function (only used in testing)
+        if input_func is not None:
+            self.tool_handler.input_func = input_func
 
-        # Update tool handler with input function
-        self.tool_handler.input_func = input_func
-
-        self.console.print(
-            "[bold green]Simple Agent[/bold green] ready. Type '/exit' to quit. Type '/help' for help."
+        # Create CLI instance with callback to process input
+        cli = CLI(
+            process_input_callback=self._process_input,
         )
 
-        while True:
-            # Get input from user with proper EOF (Ctrl+D) handling
-            try:
-                user_input = input_func("> ")
-            except EOFError:
-                # Handle Ctrl+D (EOF)
-                print()  # Print newline for clean exit
-                self.console.print("[yellow]Received EOF. Exiting.[/yellow]")
-                break
-
-            # Check for slash commands
-            if user_input.lower() == "/exit":
-                break
-
-            # Process the user input
-            self._process_input(user_input)
+        # Run the interactive prompt loop
+        cli.run_interactive_loop()
 
     def _process_input(self, user_input: str) -> None:
         """Process user input and generate a response.
@@ -144,45 +108,7 @@ class Agent:
         Args:
             user_input: The user's input text
         """
-        # Check for slash commands first
-        if user_input.lower() == "/help":
-            self._show_help()
-            return
-
-        # Check for continuation command
-        if user_input.lower() in ["continue", "proceed", "go on", "go ahead"]:
-            # Look at the last assistant message to find the next action
-            for msg in reversed(self.context):
-                if msg.get("role") == "assistant":
-                    try:
-                        assistant_data = json.loads(msg.get("content", "{}"))
-                        if (
-                            "status" in assistant_data
-                            and assistant_data["status"] == "CONTINUE"
-                            and assistant_data.get("next_action")
-                        ):
-                            self.console.print(
-                                f"[bold green]Continuing:[/bold green] {assistant_data['next_action']}"
-                            )
-                            # Create a more specific prompt based on the next_action
-                            continuation_prompt = (
-                                f"Please continue by {assistant_data['next_action']}"
-                            )
-                            self._handle_ai_request(continuation_prompt)
-                            return
-                    except (json.JSONDecodeError, KeyError):
-                        pass
-
-            # If we got here, we didn't find a clear continuation action
-            self._handle_ai_request("Please continue from where you left off")
-            return
-
-        # Otherwise, treat as a regular AI request
         self._handle_ai_request(user_input)
-
-    def _show_help(self) -> None:
-        """Show help information."""
-        self.console.print(HELP_TEXT)
 
     def _handle_ai_request(self, message: str) -> None:
         """Process a request through the AI model and handle tools if needed.
