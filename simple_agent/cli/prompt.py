@@ -26,13 +26,13 @@ The agent can:
 • Run commands (when you ask it to)
 • Read and write files (when you ask it to)
 
-[bold]Special commands:[/bold]
-• [green]/help[/green]: Show this help message
+[bold]Commands:[/bold]
+• [green]/help[/green]:  Show this help message
 • [green]/clear[/green]: Clear the terminal screen
-• [green]/exit[/green]: Exit the agent
+• [green]/exit[/green]:  Exit the agent
 
 [bold]Input features:[/bold]
-• End a line with [green]\\[/green] for aligned multi-line input
+• End a line with [green]\\ [/green]for aligned multi-line input
 • Use Tab key for command auto-completion
 
 [bold]Response types:[/bold]
@@ -52,7 +52,7 @@ class CommandCompleter(Completer):
             "/help": "Show help information",
             "/exit": "Exit the application",
             "/clear": "Clear the screen",
-            "\\": "Continue input on new line (add before pressing Enter)",
+            "\\ + Enter": "to create a new line",
         }
 
     def get_completions(
@@ -178,10 +178,10 @@ class CLI:
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃          🤖 Simple Agent           ┃
 ┃                                    ┃
-┃ /help      \033[90m for available commands \033[1;37m┃
-┃ /clear     \033[90m to clear the screen    \033[1;37m┃
-┃ /exit      \033[90m to quit                \033[1;37m┃
-┃ \\ + Enter  \033[90m to create a newline    \033[1;37m┃
+┃ \033[32m/help\033[0m      \033[90m for available commands \033[1;37m┃
+┃ \033[32m/clear\033[0m     \033[90m to clear the screen    \033[1;37m┃
+┃ \033[32m/exit\033[0m      \033[90m to quit                \033[1;37m┃
+┃ \033[32m\\ + Enter\033[0m  \033[90m to create a newline    \033[1;37m┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
         print_formatted_text(ANSI(f"\033[1;37m{welcome_message}\033[0m"))
