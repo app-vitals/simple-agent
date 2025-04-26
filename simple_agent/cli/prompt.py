@@ -1,12 +1,10 @@
 """Prompt Toolkit interface for Simple Agent."""
 
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 
 from prompt_toolkit import PromptSession, print_formatted_text
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.completion import CompleteEvent, Completer, Completion
-from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import ANSI, HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
@@ -15,6 +13,8 @@ from prompt_toolkit.keys import Keys
 from prompt_toolkit.shortcuts import clear
 from prompt_toolkit.styles import Style
 from rich.console import Console
+
+from simple_agent.cli.completion import CommandCompleter
 
 # Help text for the CLI
 HELP_TEXT = """
@@ -40,46 +40,6 @@ The agent can:
 • [yellow]Question[/yellow]: The agent needs more information from you
 • Normal response: The task is complete
 """
-
-
-class CommandCompleter(Completer):
-    """Command completer for Simple Agent."""
-
-    def __init__(self) -> None:
-        """Initialize command completer."""
-        # Define commands with descriptions
-        self.commands = {
-            "/help": "Show help information",
-            "/exit": "Exit the application",
-            "/clear": "Clear the screen",
-            "\\ + Enter": "to create a new line",
-        }
-
-    def get_completions(
-        self, document: Document, complete_event: CompleteEvent
-    ) -> Iterable[Completion]:
-        """Get completions for the current document."""
-        word = document.get_word_before_cursor()
-        text_before_cursor = document.text_before_cursor
-
-        # Only show slash commands if we're at the beginning of the line
-        # or if we've just typed a slash as the first character
-        is_first_position = (
-            not text_before_cursor.strip() or text_before_cursor.strip() == "/"
-        )
-
-        for command, description in self.commands.items():
-            # Only suggest slash commands if they're appropriate for the position
-            if command.startswith("/") and not is_first_position:
-                continue
-
-            if command.startswith(word):
-                yield Completion(
-                    command,
-                    start_position=-len(word),
-                    display=command,
-                    display_meta=description,
-                )
 
 
 def setup_keybindings() -> KeyBindings:
