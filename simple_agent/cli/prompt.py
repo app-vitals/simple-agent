@@ -60,8 +60,19 @@ class CommandCompleter(Completer):
     ) -> Iterable[Completion]:
         """Get completions for the current document."""
         word = document.get_word_before_cursor()
+        text_before_cursor = document.text_before_cursor
+
+        # Only show slash commands if we're at the beginning of the line
+        # or if we've just typed a slash as the first character
+        is_first_position = (
+            not text_before_cursor.strip() or text_before_cursor.strip() == "/"
+        )
 
         for command, description in self.commands.items():
+            # Only suggest slash commands if they're appropriate for the position
+            if command.startswith("/") and not is_first_position:
+                continue
+
             if command.startswith(word):
                 yield Completion(
                     command,
@@ -88,23 +99,21 @@ def setup_keybindings() -> KeyBindings:
     @kb.add(Keys.Enter)
     def _(event: KeyPressEvent) -> None:
         """Enter key handler with special handling for backslash continuation."""
-        # Get current buffer text
-        current_text = event.app.current_buffer.text
+        # Get current buffer
+        buffer = event.app.current_buffer
 
-        # If the line ends with a backslash, treat as continuation
-        if current_text.endswith("\\"):
-            # Remove the backslash and add a newline with proper indentation
-            event.app.current_buffer.delete_before_cursor(1)  # Remove the backslash
+        # Check if the current line ends with a backslash
+        current_line = buffer.document.current_line
+        if current_line.endswith("\\"):
+            # Remove the backslash
+            buffer.delete_before_cursor(1)
 
-            # Insert a newline and proper indentation
-            # Find the first prompt '>' position and add spaces to align
-            event.app.current_buffer.newline()  # Add a newline character
-            event.app.current_buffer.insert_text(
-                "  "
-            )  # Add indentation aligned with initial text
-        else:
-            # Normal Enter behavior (submit)
-            event.app.current_buffer.validate_and_handle()
+            # Insert a newline (multiline mode will handle the indentation)
+            buffer.newline()
+            return
+
+        # Normal Enter behavior
+        buffer.validate_and_handle()
 
     return kb
 
@@ -131,12 +140,12 @@ class CLI:
                 "prompt.arrow": "ansiwhite",
                 "continuation": "ansibrightblack",
                 "user-input": "ansiwhite",
-                # Completion menu colors
-                "completion-menu.completion": "bg:#008888 #ffffff",
-                "completion-menu.completion.current": "bg:#00aaaa #000000",
-                "completion-menu.meta.completion": "bg:#44aaff #ffffff",
-                "completion-menu.meta.completion.current": "bg:#00aaaa #000000",
-                "completion-menu.multi-column-meta": "bg:#aaffff #000000",
+                # Completion menu colors - gray palette
+                "completion-menu.completion": "bg:#444444 #ffffff",
+                "completion-menu.completion.current": "bg:#666666 #ffffff",
+                "completion-menu.meta.completion": "bg:#333333 #aaaaaa",
+                "completion-menu.meta.completion.current": "bg:#555555 #ffffff",
+                "completion-menu.multi-column-meta": "bg:#444444 #aaaaaa",
                 # Scrollbar colors
                 "scrollbar.background": "bg:#88aaaa",
                 "scrollbar.button": "bg:#222222",
@@ -165,6 +174,10 @@ class CLI:
             complete_in_thread=True,  # Perform completion in a background thread
             mouse_support=True,  # Enable mouse support for selection
             wrap_lines=True,  # Wrap long lines
+            multiline=True,  # Enable proper multiline support
+            prompt_continuation=lambda width, line_number, is_soft_wrap: (
+                "  " if not is_soft_wrap else ""
+            ),
         )
 
     def show_help(self) -> None:

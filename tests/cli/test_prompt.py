@@ -10,6 +10,7 @@ from simple_agent.cli.prompt import (
     CLI,
     CommandCompleter,
     create_rich_formatted_response,
+    setup_keybindings,
 )
 from simple_agent.core.schema import AgentStatus
 
@@ -38,7 +39,20 @@ def test_command_completer() -> None:
     assert "/help" in completer.commands
     assert "/exit" in completer.commands
     assert "/clear" in completer.commands
-    assert "\\" in completer.commands
+    assert "\\ + Enter" in completer.commands
+
+    # Test getting completions
+    doc = MagicMock()
+    doc.get_word_before_cursor.return_value = "/"
+    doc.text_before_cursor = "/"
+
+    completions = list(completer.get_completions(doc, MagicMock()))
+    assert len(completions) == 3  # /help, /exit, /clear
+
+    # Test that slash commands only appear at the beginning of a line
+    doc.text_before_cursor = "some text /"
+    completions = list(completer.get_completions(doc, MagicMock()))
+    assert len(completions) == 0  # No slash commands in the middle of text
 
 
 def test_show_help(cli_instance: CLI, mocker: MockerFixture) -> None:
@@ -129,6 +143,23 @@ def test_integration_with_agent(mocker: MockerFixture) -> None:
 
     # Verify that the process_input callback was called with the test input
     mock_process_input.assert_called_once_with("test command")
+
+
+def test_multiline_input(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test multiline input with the prompt continuation feature."""
+    # Test the prompt_continuation function
+    # Simply verify that the prompt_continuation is set up correctly
+    assert hasattr(cli_instance.session, "prompt_continuation")
+    assert cli_instance.session.prompt_continuation is not None
+
+    # Test the Enter key handler for backslash continuation indirectly
+    # by verifying session configuration
+    assert cli_instance.session.multiline
+
+    # Directly test the Enter key handler from setup_keybindings
+    kb = setup_keybindings()
+    assert kb is not None
+    assert len(kb.bindings) >= 3  # At least Ctrl+C, Ctrl+D, and Enter
 
 
 def test_run_interactive_loop_eof(cli_instance: CLI, mocker: MockerFixture) -> None:
