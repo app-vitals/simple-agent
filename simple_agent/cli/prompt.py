@@ -176,7 +176,7 @@ class CLI:
         # Display welcome message with styling
         welcome_message = """
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃        🤖 Simple Agent             ┃
+┃          🤖 Simple Agent           ┃
 ┃                                    ┃
 ┃ /help      \033[90m for available commands \033[1;37m┃
 ┃ /clear     \033[90m to clear the screen    \033[1;37m┃
