@@ -128,7 +128,7 @@ class CLI:
         self.style = Style.from_dict(
             {
                 "prompt": "ansibrightyellow",
-                "prompt.arrow": "ansibrightgreen",
+                "prompt.arrow": "ansiwhite",
                 "continuation": "ansibrightblack",
                 "user-input": "ansiwhite",
                 # Completion menu colors
@@ -175,17 +175,16 @@ class CLI:
         """Run the interactive prompt loop."""
         # Display welcome message with styling
         welcome_message = """
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                 🤖 Simple Agent                     ┃
-┃                                                     ┃
-┃ • Type your questions or requests                   ┃
-┃ • End a line with \\ for aligned multi-line input    ┃
-┃ • Type '/help' for available commands               ┃
-┃ • Type '/clear' to clear the screen                 ┃
-┃ • Type '/exit' to quit                              ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        🤖 Simple Agent             ┃
+┃                                    ┃
+┃ /help      \033[90m for available commands \033[1;37m┃
+┃ /clear     \033[90m to clear the screen    \033[1;37m┃
+┃ /exit      \033[90m to quit                \033[1;37m┃
+┃ \\ + Enter  \033[90m to create a newline    \033[1;37m┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
-        print_formatted_text(ANSI(f"\033[1;32m{welcome_message}\033[0m"))
+        print_formatted_text(ANSI(f"\033[1;37m{welcome_message}\033[0m"))
 
         while True:
             try:
