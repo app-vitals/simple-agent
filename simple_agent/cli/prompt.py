@@ -14,7 +14,7 @@ from prompt_toolkit.shortcuts import clear
 from prompt_toolkit.styles import Style
 from rich.console import Console
 
-from simple_agent.cli.completion import CommandCompleter
+from simple_agent.cli.completion import Completer
 
 # Help text for the CLI
 HELP_TEXT = """
@@ -127,7 +127,7 @@ class CLI:
         self.session: PromptSession = PromptSession(
             history=history,
             auto_suggest=AutoSuggestFromHistory(),
-            completer=CommandCompleter(),
+            completer=Completer(),
             key_bindings=setup_keybindings(),
             style=self.style,
             complete_while_typing=True,

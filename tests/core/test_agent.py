@@ -272,6 +272,23 @@ def test_process_llm_response_json(agent: Agent, mocker: MockerFixture) -> None:
     assert agent.context[-1]["content"] == json_content
 
 
+def test_process_llm_response_empty_content(
+    agent: Agent, mocker: MockerFixture
+) -> None:
+    """Test processing an empty response."""
+    # Set up mock console
+    agent.console = mocker.MagicMock()  # type: ignore
+
+    # Call the method with empty content
+    agent._process_llm_response("", MagicMock())
+
+    # Verify error was printed
+    agent.console.print.assert_called_once_with("[bold red]Error:[/bold red] Empty response from LLM")  # type: ignore
+
+    # Verify context wasn't updated
+    assert len(agent.context) == 1  # Only system prompt should be there
+
+
 def test_process_llm_response_ask(agent: Agent, mocker: MockerFixture) -> None:
     """Test processing a JSON response with ASK status."""
     # Set up mock console
@@ -292,6 +309,37 @@ def test_process_llm_response_ask(agent: Agent, mocker: MockerFixture) -> None:
     # Verify question was printed
     agent.console.print.assert_any_call(  # type: ignore
         "[bold yellow]Question:[/bold yellow] What would you like me to do?"
+    )
+
+
+def test_process_llm_response_continue(agent: Agent, mocker: MockerFixture) -> None:
+    """Test processing a JSON response with CONTINUE status."""
+    # Set up mock console
+    agent.console = mocker.MagicMock()  # type: ignore
+
+    # Mock the _handle_ai_request method
+    agent._handle_ai_request = mocker.MagicMock()  # type: ignore
+
+    # Create a CONTINUE response
+    json_content = json.dumps(
+        {
+            "message": "Working on it",
+            "status": "CONTINUE",
+            "next_action": "I'll check the documentation next",
+        }
+    )
+
+    # Call the method
+    agent._process_llm_response(json_content, MagicMock())
+
+    # Verify next action was printed
+    agent.console.print.assert_any_call(  # type: ignore
+        "[bold blue]Next action:[/bold blue] I'll check the documentation next"
+    )
+
+    # Verify that it called _handle_ai_request with the continuation prompt
+    agent._handle_ai_request.assert_called_once_with(  # type: ignore
+        "Please continue by I'll check the documentation next"
     )
 
 
