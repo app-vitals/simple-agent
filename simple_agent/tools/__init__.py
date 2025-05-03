@@ -4,7 +4,7 @@ from typing import Any
 
 # Import tool functions
 from simple_agent.tools.exec import execute_command
-from simple_agent.tools.files import patch_file, read_files, write_file
+from simple_agent.tools.files import list_directory, patch_file, read_files, write_file
 
 # Tool definitions with metadata
 TOOLS: dict[str, dict[str, Any]] = {
@@ -56,6 +56,30 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
         "returns": "True if successful, False otherwise",
         "requires_confirmation": True,  # Modifies the system
+    },
+    "list_directory": {
+        "function": list_directory,
+        "description": "List directories and files in a given directory path",
+        "parameters": {
+            "directory_path": {
+                "type": "string",
+                "description": "Path to the directory to list",
+            },
+            "show_hidden": {
+                "type": "boolean",
+                "description": "Whether to include hidden files and directories (those starting with .)",
+            },
+            "recursive": {
+                "type": "boolean",
+                "description": "Whether to list subdirectories recursively",
+            },
+            "max_depth": {
+                "type": "integer",
+                "description": "Maximum recursion depth (only used if recursive=True)",
+            },
+        },
+        "returns": "Dictionary with directory structure information including files and subdirectories",
+        "requires_confirmation": False,  # Reading directory structure doesn't modify the system
     },
     "execute_command": {
         "function": execute_command,
