@@ -1,10 +1,12 @@
-"""Command execution tools."""
+"""Tool for executing shell commands."""
 
 import subprocess
 import sys
 from select import select
 
 from rich.console import Console
+
+from simple_agent.tools.registry import register
 
 
 def execute_command(command: str) -> tuple[str, str, int]:
@@ -78,3 +80,19 @@ def execute_command(command: str) -> tuple[str, str, int]:
         sys.stderr.write(f"ERROR: {error_msg}\n")
         sys.stderr.flush()
         return "", error_msg, 1
+
+
+# Register this tool with the registry
+register(
+    name="execute_command",
+    function=execute_command,
+    description="Execute a shell command",
+    parameters={
+        "command": {
+            "type": "string",
+            "description": "Command to execute",
+        }
+    },
+    returns="Tuple containing (stdout, stderr, return_code)",
+    requires_confirmation=True,  # Modifies the system
+)
