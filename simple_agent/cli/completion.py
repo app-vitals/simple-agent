@@ -73,6 +73,8 @@ class FilePathCompleter(PTKCompleter):
     ) -> Iterable[Completion]:
         """Get file path completions for the current document."""
         text = document.text_before_cursor
+        text = text.split(" ")[-1]
+        sub_document = Document(text)
 
         # Only activate for paths that start with ./, ~/, or /
         if (
@@ -83,7 +85,7 @@ class FilePathCompleter(PTKCompleter):
             or "~/" in text
             or "/" in text
         ):
-            yield from self.path_completer.get_completions(document, complete_event)
+            yield from self.path_completer.get_completions(sub_document, complete_event)
 
 
 class Completer(PTKCompleter):

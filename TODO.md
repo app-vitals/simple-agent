@@ -1,6 +1,6 @@
 # TODO
 
-* Fix file completions
+* Ctrl+C to stop the agent
 * Tool call format
   * Executing in parallel
 * Patch diff view

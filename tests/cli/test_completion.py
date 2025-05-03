@@ -38,35 +38,70 @@ def test_file_path_completer(mocker: MockerFixture) -> None:
     # Create a reusable mock response
     mock_completion = MagicMock()
 
+    # Keep track of what the completer passes to the path_completer
+    sub_documents = []
+    
+    # Create a custom mock that captures the document passed
+    def mock_get_completions(document, _):
+        # Save the document that was passed to the path_completer
+        sub_documents.append(document.text_before_cursor)
+        return [mock_completion]
+    
+    # Apply the mock
+    mocker.patch.object(
+        completer.path_completer, 
+        "get_completions", 
+        side_effect=mock_get_completions
+    )
+
     # Test with path starting with ./
     doc = MagicMock()
     doc.text_before_cursor = "./test"
 
-    mocker.patch.object(
-        completer.path_completer, "get_completions", return_value=[mock_completion]
-    )
     completions = list(completer.get_completions(doc, MagicMock()))
     assert len(completions) > 0  # Should yield completions for ./test
+    # The document passed to path_completer should be the full string
+    assert sub_documents[-1] == "./test"
 
     # Test with path starting with ~/
     doc.text_before_cursor = "~/test"
     completions = list(completer.get_completions(doc, MagicMock()))
     assert len(completions) > 0  # Should yield completions for ~/test
+    # The document passed to path_completer should be the full string
+    assert sub_documents[-1] == "~/test"
 
     # Test with path starting with /
     doc.text_before_cursor = "/usr/bin"
     completions = list(completer.get_completions(doc, MagicMock()))
     assert len(completions) > 0  # Should yield completions for /usr/bin
+    # The document passed to path_completer should be the full string
+    assert sub_documents[-1] == "/usr/bin"
 
     # Test with path containing ./ in the middle
     doc.text_before_cursor = "copy ./test"
     completions = list(completer.get_completions(doc, MagicMock()))
     assert len(completions) > 0  # Should yield completions for ./test
+    # The document passed to path_completer should be just "./test"
+    assert sub_documents[-1] == "./test"
+    
+    # Test with command and path pattern
+    doc.text_before_cursor = "ls /usr/lo"
+    completions = list(completer.get_completions(doc, MagicMock()))
+    assert len(completions) > 0
+    # The document passed to path_completer should be just "/usr/lo"
+    assert sub_documents[-1] == "/usr/lo"
+    
+    # Test with multiple spaces
+    doc.text_before_cursor = "command with   /etc/ho"
+    completions = list(completer.get_completions(doc, MagicMock()))
+    assert len(completions) > 0
+    # The document passed to path_completer should be just "/etc/ho"
+    assert sub_documents[-1] == "/etc/ho"
 
     # Test with non-path input
     doc.text_before_cursor = "hello world"
 
-    # Remove the mock so it returns the actual empty result for non-path inputs
+    # Replace the mock with one that returns no completions
     mocker.patch.object(completer.path_completer, "get_completions", return_value=[])
     completions = list(completer.get_completions(doc, MagicMock()))
     assert len(completions) == 0  # Should not yield completions for non-path
