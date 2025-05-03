@@ -4,7 +4,13 @@ from typing import Any
 
 # Import tool functions
 from simple_agent.tools.exec import execute_command
-from simple_agent.tools.files import list_directory, patch_file, read_files, write_file
+from simple_agent.tools.files import (
+    glob_files,
+    list_directory,
+    patch_file,
+    read_files,
+    write_file,
+)
 
 # Tool definitions with metadata
 TOOLS: dict[str, dict[str, Any]] = {
@@ -80,6 +86,30 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
         "returns": "Dictionary with directory structure information including files and subdirectories",
         "requires_confirmation": False,  # Reading directory structure doesn't modify the system
+    },
+    "glob_files": {
+        "function": glob_files,
+        "description": "Find files matching a glob pattern",
+        "parameters": {
+            "pattern": {
+                "type": "string",
+                "description": 'Glob pattern to match (e.g., "*.py", "**/*.json")',
+            },
+            "base_dir": {
+                "type": "string",
+                "description": "Base directory to start the search from (defaults to current directory)",
+            },
+            "recursive": {
+                "type": "boolean",
+                "description": 'Whether to search recursively (automatically set to True for "**" patterns)',
+            },
+            "include_hidden": {
+                "type": "boolean",
+                "description": "Whether to include hidden files (starting with .)",
+            },
+        },
+        "returns": "List of file paths matching the pattern",
+        "requires_confirmation": False,  # Reading file information doesn't modify the system
     },
     "execute_command": {
         "function": execute_command,

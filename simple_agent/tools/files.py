@@ -1,5 +1,6 @@
 """File operation tools."""
 
+import glob
 import os
 from pathlib import Path
 from typing import Any
@@ -211,3 +212,92 @@ def _scan_directory(
             files_list.append(file_info)
 
     return result
+
+
+def glob_files(
+    pattern: str,
+    base_dir: str = ".",
+    recursive: bool = False,
+    include_hidden: bool = False,
+) -> list[str]:
+    """Find files matching a glob pattern.
+
+    Args:
+        pattern: Glob pattern to match (e.g., "*.py", "**/*.json")
+        base_dir: Base directory to start the search from
+        recursive: Whether to search recursively (automatically set to True for "**" patterns)
+        include_hidden: Whether to include hidden files (starting with .)
+
+    Returns:
+        List of file paths matching the pattern
+    """
+    console = Console()
+    console.print(f"[bold blue]Searching for files:[/bold blue] {pattern}")
+
+    try:
+        # Convert base_dir to absolute path and resolve any symlinks
+        base_path = Path(base_dir).expanduser().resolve()
+        if not base_path.exists():
+            console.print(
+                f"[bold red]Error:[/bold red] Base directory does not exist: {base_path}"
+            )
+            return []
+
+        if not base_path.is_dir():
+            console.print(f"[bold red]Error:[/bold red] Not a directory: {base_path}")
+            return []
+
+        # If pattern contains "**", set recursive to True automatically
+        if "**" in pattern:
+            recursive = True
+
+        # Construct the full pattern
+        full_pattern = os.path.join(str(base_path), pattern)
+
+        # Use glob to find matching files
+        matched_files = glob.glob(full_pattern, recursive=recursive)
+
+        # If include_hidden is True, we may need to handle this specially for hidden files
+        # Since glob might skip hidden files in some environments
+        if include_hidden and "*" in pattern:
+            # Get the directory where we're searching
+            search_dir = os.path.dirname(full_pattern) or base_path
+            # Get the pattern we're matching against
+            base_pattern = os.path.basename(pattern)
+
+            # For patterns like "*.py", manually check for hidden files matching the extension
+            if base_pattern.startswith("*."):
+                extension = base_pattern[1:]  # Get ".py" from "*.py"
+                for item in os.listdir(str(search_dir)):
+                    if item.startswith(".") and item.endswith(extension):
+                        hidden_path = os.path.join(str(search_dir), item)
+                        if (
+                            os.path.isfile(hidden_path)
+                            and hidden_path not in matched_files
+                        ):
+                            matched_files.append(hidden_path)
+
+        # Filter out directories and hidden files if needed
+        result = []
+        for file_path in matched_files:
+            path = Path(file_path)
+
+            # Skip directories
+            if path.is_dir():
+                continue
+
+            # Skip hidden files if include_hidden is False
+            if not include_hidden and path.name.startswith("."):
+                continue
+
+            result.append(str(path))
+
+        # Sort files by modification time (newest first)
+        result.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+
+        console.print(f"[bold green]Found:[/bold green] {len(result)} files")
+        return result
+
+    except Exception as e:
+        console.print(f"[bold red]Error during glob search:[/bold red] {e}")
+        return []
