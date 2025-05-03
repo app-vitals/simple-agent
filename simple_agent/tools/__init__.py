@@ -5,6 +5,7 @@
 from simple_agent.tools.exec import execute_command
 from simple_agent.tools.files import (
     glob_files,
+    grep_files,
     list_directory,
     patch_file,
     read_files,
@@ -28,6 +29,7 @@ __all__ = [
     "patch_file",
     "list_directory",
     "glob_files",
+    "grep_files",
     # Exec tools
     "execute_command",
 ]

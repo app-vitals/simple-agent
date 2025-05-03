@@ -4,6 +4,7 @@
   * List files
   * Glob file matching
   * Grep file content
+* Allow the user to execute a command with !
 * Tool call format
   * Executing in parallel
 * Patch diff view
