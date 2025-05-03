@@ -32,6 +32,25 @@ def test_cli_init(cli_instance: CLI) -> None:
     assert hasattr(cli_instance, "session")
 
 
+def test_cli_init_history_fallback(mocker: MockerFixture) -> None:
+    """Test CLI initialization with history file fallback."""
+    # Mock FileHistory to raise an exception
+    mock_file_history = mocker.patch("simple_agent.cli.prompt.FileHistory")
+    mock_file_history.side_effect = Exception("Cannot create history file")
+
+    # Mock process_input callback
+    mock_process_input = mocker.MagicMock()
+
+    # Create CLI - this should fall back to no history
+    cli = CLI(process_input_callback=mock_process_input)
+
+    # Verify attributes are still set
+    assert hasattr(cli, "console")
+    assert hasattr(cli, "process_input")
+    assert hasattr(cli, "style")
+    assert hasattr(cli, "session")
+
+
 def test_show_help(cli_instance: CLI, mocker: MockerFixture) -> None:
     """Test the show_help method."""
     # Mock console.print
@@ -129,6 +148,22 @@ def test_multiline_input(cli_instance: CLI, mocker: MockerFixture) -> None:
     assert hasattr(cli_instance.session, "prompt_continuation")
     assert cli_instance.session.prompt_continuation is not None
 
+    # Test the prompt_continuation function directly
+    # Get the prompt_continuation callable from the session
+    # The mypy error is because prompt_continuation could be multiple types,
+    # but we know it's a callable in this context
+    prompt_cont = cli_instance.session.prompt_continuation
+
+    # Test prompt_continuation with different inputs - ensure it's a callable
+    if callable(prompt_cont):
+        # For not soft-wrapped lines - call the function to get the result
+        result_no_wrap = prompt_cont(80, 1, False)
+        assert result_no_wrap == "  "  # Should return 2 spaces for indentation
+
+        # For soft-wrapped lines
+        result_wrap = prompt_cont(80, 1, True)
+        assert result_wrap == ""  # Should return empty string for soft-wrapped lines
+
     # Test the Enter key handler for backslash continuation indirectly
     # by verifying session configuration
     assert cli_instance.session.multiline
@@ -139,8 +174,8 @@ def test_multiline_input(cli_instance: CLI, mocker: MockerFixture) -> None:
     assert len(kb.bindings) >= 5  # Ctrl+C, Ctrl+D, Enter, !, and Backspace keys
 
 
-def test_key_bindings(cli_instance: CLI, mocker: MockerFixture) -> None:
-    """Test key bindings functionality."""
+def test_bang_key_handler(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test the '!' key binding functionality."""
     # Get key bindings
     kb = setup_keybindings(cli_instance)
 
@@ -153,44 +188,223 @@ def test_key_bindings(cli_instance: CLI, mocker: MockerFixture) -> None:
     mock_event.current_buffer = mock_buffer
     mock_event.key_sequence = [None]  # Just to have something
 
-    # Find the handlers for specific keys
-    ctrl_c_handler = None
+    # Find the ! handler
     bang_handler = None
-    backspace_handler = None
-
     for binding in kb.bindings:
-        key = binding.keys[0]
-        # Check the key value directly - Keys.ControlC etc. are the values themselves
-        if key == Keys.ControlC:
-            ctrl_c_handler = binding.handler
-        elif key == "!":
+        if binding.keys[0] == "!":
             bang_handler = binding.handler
-        elif key == Keys.Backspace:
-            backspace_handler = binding.handler
+            break
 
-    assert ctrl_c_handler is not None
     assert bang_handler is not None
-    assert backspace_handler is not None
 
     # Test '!' handler for changing modes
     cli_instance.mode = CLIMode.NORMAL
     bang_handler(mock_event)
     assert cli_instance.mode == CLIMode.SHELL
 
+    # Test '!' handler in Shell mode - should insert ! character
+    cli_instance.mode = CLIMode.SHELL
+    # Reset the mock_buffer to clear any state from previous tests
+    mock_buffer.reset_mock()
+
+    # Mock set_mode method to return False (meaning already in shell mode)
+    mock_set_mode = mocker.patch.object(cli_instance, "set_mode", return_value=False)
+
+    # Call the bang handler
+    bang_handler(mock_event)
+
+    # Now the insert_text should have been called
+    mock_buffer.insert_text.assert_called_once_with("!")
+
+    # Verify our mock was called
+    mock_set_mode.assert_called_once_with(CLIMode.SHELL)
+
+
+def test_backspace_handler(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test the Backspace key handler functionality."""
+    # Get key bindings
+    kb = setup_keybindings(cli_instance)
+
+    # Create mock event and buffer for testing
+    mock_buffer = mocker.MagicMock()
+    mock_app = mocker.MagicMock()
+    mock_event = mocker.MagicMock()
+    mock_event.app = mock_app
+    mock_event.app.current_buffer = mock_buffer
+    mock_event.current_buffer = mock_buffer
+
+    # Find the Backspace handler
+    backspace_handler = None
+    for binding in kb.bindings:
+        if binding.keys[0] == Keys.Backspace:
+            backspace_handler = binding.handler
+            break
+
+    assert backspace_handler is not None
+
     # Test Backspace handler - reset to normal mode if buffer empty
     cli_instance.mode = CLIMode.SHELL
     mock_buffer.cursor_position = 0  # Simulate cursor at beginning
+    mock_buffer.reset_mock()
+
+    # Need to mock set_mode to return True (mode was changed)
+    mock_set_mode = mocker.patch.object(cli_instance, "set_mode", return_value=True)
+
     backspace_handler(mock_event)
-    assert cli_instance.mode == CLIMode.NORMAL
+
+    # Verify set_mode was called with NORMAL mode
+    mock_set_mode.assert_called_once_with(CLIMode.NORMAL)
+
+    # Test should not delete character when changing modes
+    mock_buffer.delete_before_cursor.assert_not_called()
+
+    # Test Backspace handler - normal delete functionality when not at start
+    cli_instance.mode = CLIMode.NORMAL
+    mock_buffer.cursor_position = 3  # Not at beginning
+    mock_buffer.reset_mock()
+    mock_set_mode.reset_mock()
+
+    backspace_handler(mock_event)
+
+    # Should not try to change mode
+    mock_set_mode.assert_not_called()
+    # Should delete character
+    mock_buffer.delete_before_cursor.assert_called_once_with(1)
+
+
+def test_ctrl_c_handler(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test the Ctrl+C key handler functionality."""
+    # Get key bindings
+    kb = setup_keybindings(cli_instance)
+
+    # Create mock event and buffer for testing
+    mock_buffer = mocker.MagicMock()
+    mock_app = mocker.MagicMock()
+    mock_event = mocker.MagicMock()
+    mock_event.app = mock_app
+    mock_event.app.current_buffer = mock_buffer
+
+    # Find the Ctrl+C handler
+    ctrl_c_handler = None
+    for binding in kb.bindings:
+        if binding.keys[0] == Keys.ControlC:
+            ctrl_c_handler = binding.handler
+            break
+
+    assert ctrl_c_handler is not None
 
     # Test Ctrl+C handler with text in buffer
     cli_instance.mode = CLIMode.SHELL
     mock_buffer.text = "test text"
+
+    # Mock set_mode to handle the mode change
+    mock_set_mode = mocker.patch.object(cli_instance, "set_mode")
+
     ctrl_c_handler(mock_event)
+
     # Should clear buffer
     assert mock_buffer.text == ""
     # Should reset to normal mode
-    assert cli_instance.mode == CLIMode.NORMAL
+    mock_set_mode.assert_called_once_with(CLIMode.NORMAL)
+
+    # Test Ctrl+C handler with empty buffer and normal mode (should exit)
+    cli_instance.mode = CLIMode.NORMAL
+    mock_buffer.text = ""
+    mock_app.exit.reset_mock()
+    mock_set_mode.reset_mock()
+
+    ctrl_c_handler(mock_event)
+
+    # Should cause app to exit
+    mock_app.exit.assert_called_once()
+    # KeyboardInterrupt should be passed
+    args, kwargs = mock_app.exit.call_args
+    assert isinstance(kwargs.get("exception"), KeyboardInterrupt)
+
+
+def test_ctrl_d_handler(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test the Ctrl+D key handler functionality."""
+    # Get key bindings
+    kb = setup_keybindings(cli_instance)
+
+    # Create mock event and buffer for testing
+    mock_app = mocker.MagicMock()
+    mock_event = mocker.MagicMock()
+    mock_event.app = mock_app
+
+    # Find the Ctrl+D handler
+    ctrl_d_handler = None
+    for binding in kb.bindings:
+        if binding.keys[0] == Keys.ControlD:
+            ctrl_d_handler = binding.handler
+            break
+
+    assert ctrl_d_handler is not None
+
+    # Test Ctrl+D handler (should exit with EOFError)
+    mock_app.exit.reset_mock()
+    ctrl_d_handler(mock_event)
+
+    # Check that exit was called
+    assert mock_app.exit.call_count == 1
+    # Check that exception is EOFError
+    args, kwargs = mock_app.exit.call_args
+    assert isinstance(kwargs.get("exception"), EOFError)
+
+
+def test_enter_handler(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test the Enter key handler functionality."""
+    # Get key bindings
+    kb = setup_keybindings(cli_instance)
+
+    # Create mock event and buffer for testing
+    mock_buffer = mocker.MagicMock()
+    mock_event = mocker.MagicMock()
+    mock_event.app = mocker.MagicMock()
+    mock_event.app.current_buffer = mock_buffer
+    mock_event.current_buffer = mock_buffer
+
+    # Find the Enter handler
+    enter_handler = None
+    for binding in kb.bindings:
+        if binding.keys[0] == Keys.Enter:
+            enter_handler = binding.handler
+            break
+
+    assert enter_handler is not None
+
+    # Test Enter handler with backslash continuation
+    mock_buffer.document.current_line = "test line \\"
+    cli_instance.mode = CLIMode.NORMAL
+    mock_buffer.reset_mock()
+
+    enter_handler(mock_event)
+
+    # Should delete the backslash
+    mock_buffer.delete_before_cursor.assert_called_once_with(1)
+    # Should insert a newline
+    mock_buffer.newline.assert_called_once()
+
+    # Test Enter handler with backslash continuation in shell mode
+    mock_buffer.document.current_line = "echo foo \\"
+    cli_instance.mode = CLIMode.SHELL
+    mock_buffer.reset_mock()
+
+    enter_handler(mock_event)
+
+    # Should not delete the backslash in shell mode
+    mock_buffer.delete_before_cursor.assert_not_called()
+    # Should insert a newline
+    mock_buffer.newline.assert_called_once()
+
+    # Test normal Enter behavior (no backslash)
+    mock_buffer.document.current_line = "normal line"
+    mock_buffer.reset_mock()
+
+    enter_handler(mock_event)
+
+    # Should validate and handle
+    mock_buffer.validate_and_handle.assert_called_once()
 
 
 def test_run_interactive_loop_eof(cli_instance: CLI, mocker: MockerFixture) -> None:
@@ -265,6 +479,26 @@ def test_execute_command(cli_instance: CLI, mocker: MockerFixture) -> None:
     assert "command output" in output
     assert "error output" in output
 
+    # Test with only stdout, no stderr
+    mock_result.stderr = ""
+    mock_run.reset_mock()
+    mock_run.return_value = mock_result
+    mock_run.side_effect = None  # Clear any previous side effects
+
+    output = cli_instance.execute_command("stdout only command")
+    assert "command output" in output
+    assert "error output" not in output
+
+    # Test with only stderr, no stdout
+    mock_result.stdout = ""
+    mock_result.stderr = "error only"
+    mock_run.reset_mock()
+    mock_run.return_value = mock_result
+
+    output = cli_instance.execute_command("stderr only command")
+    assert "error only" in output
+    assert "command output" not in output
+
     # Test exception handling
     mock_run.side_effect = Exception("test error")
     output = cli_instance.execute_command("problem command")
@@ -279,9 +513,10 @@ def test_shell_mode_in_interactive_loop(
     mocker.patch("simple_agent.cli.prompt.print_formatted_text")
 
     # Mock set_mode method to track calls and avoid real mode switching
-    original_set_mode = cli_instance.set_mode
-    mock_set_mode = mocker.MagicMock(wraps=original_set_mode)
-    cli_instance.set_mode = mock_set_mode  # type: ignore
+    # Use mocker.patch.object with wraps to track calls while preserving behavior
+    mock_set_mode = mocker.patch.object(
+        cli_instance, "set_mode", wraps=cli_instance.set_mode
+    )
 
     # Mock session.prompt for different input scenarios
     mock_prompt = mocker.MagicMock()
