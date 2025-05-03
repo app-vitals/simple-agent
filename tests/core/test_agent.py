@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
+from simple_agent.cli.prompt import CLIMode
 from simple_agent.core.agent import Agent
 from simple_agent.core.schema import AgentResponse
 
@@ -73,6 +74,12 @@ def test_handle_ai_request(agent: Agent, mocker: MockerFixture) -> None:
     agent.llm_client = mocker.MagicMock()  # type: ignore
     agent.tool_handler = mocker.MagicMock()  # type: ignore
 
+    # Create a mock cli
+    mock_cli = mocker.MagicMock()
+    # Mock the CLIMode.NORMAL value
+    type(mock_cli).mode = mocker.PropertyMock(return_value=CLIMode.NORMAL)
+    agent.cli = mock_cli
+
     # Create a mock response with no tool calls
     mock_response = mocker.MagicMock()
     agent._send_llm_request = mocker.MagicMock(return_value=mock_response)  # type: ignore
@@ -103,6 +110,12 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
     agent.llm_client = mocker.MagicMock()  # type: ignore
     agent.tool_handler = mocker.MagicMock()  # type: ignore
     agent._process_llm_response = mocker.MagicMock()  # type: ignore
+
+    # Create a mock cli
+    mock_cli = mocker.MagicMock()
+    # Mock the CLIMode.NORMAL value
+    type(mock_cli).mode = mocker.PropertyMock(return_value=CLIMode.NORMAL)
+    agent.cli = mock_cli
 
     # Create initial response with tool calls and follow-up without tools
     mock_tool_calls = [mocker.MagicMock()]
@@ -158,6 +171,12 @@ def test_handle_ai_request_with_nested_tool_calls(
     agent.tool_handler = mocker.MagicMock()  # type: ignore
     agent._process_llm_response = mocker.MagicMock()  # type: ignore
 
+    # Create a mock cli
+    mock_cli = mocker.MagicMock()
+    # Mock the CLIMode.NORMAL value
+    type(mock_cli).mode = mocker.PropertyMock(return_value=CLIMode.NORMAL)
+    agent.cli = mock_cli
+
     # Create responses with tool calls for multiple iterations
     mock_tool_calls1 = [mocker.MagicMock()]
     mock_tool_calls2 = [mocker.MagicMock()]
@@ -209,6 +228,12 @@ def test_handle_ai_request_error(agent: Agent, mocker: MockerFixture) -> None:
     """Test handling AI request when LLM returns no response."""
     # Mock dependencies
     agent.console = mocker.MagicMock()  # type: ignore
+
+    # Create a mock cli
+    mock_cli = mocker.MagicMock()
+    # Mock the CLIMode.NORMAL value
+    type(mock_cli).mode = mocker.PropertyMock(return_value=CLIMode.NORMAL)
+    agent.cli = mock_cli
 
     # _send_llm_request returns None (error)
     agent._send_llm_request = mocker.MagicMock(return_value=None)  # type: ignore
@@ -350,6 +375,12 @@ def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -
     agent.llm_client = mocker.MagicMock()  # type: ignore
     agent.tool_handler = mocker.MagicMock()  # type: ignore
     agent._process_llm_response = mocker.MagicMock()  # type: ignore
+
+    # Create a mock cli
+    mock_cli = mocker.MagicMock()
+    # Mock the CLIMode.NORMAL value
+    type(mock_cli).mode = mocker.PropertyMock(return_value=CLIMode.NORMAL)
+    agent.cli = mock_cli
 
     # Create responses all with tool calls to trigger the max iterations
     mock_tool_calls = [mocker.MagicMock()]

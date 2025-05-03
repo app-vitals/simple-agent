@@ -4,10 +4,12 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from prompt_toolkit.keys import Keys
 from pytest_mock import MockerFixture
 
 from simple_agent.cli.prompt import (
     CLI,
+    CLIMode,
     create_rich_formatted_response,
     setup_keybindings,
 )
@@ -132,9 +134,63 @@ def test_multiline_input(cli_instance: CLI, mocker: MockerFixture) -> None:
     assert cli_instance.session.multiline
 
     # Directly test the Enter key handler from setup_keybindings
-    kb = setup_keybindings()
+    kb = setup_keybindings(cli_instance)
     assert kb is not None
-    assert len(kb.bindings) >= 3  # At least Ctrl+C, Ctrl+D, and Enter
+    assert len(kb.bindings) >= 5  # Ctrl+C, Ctrl+D, Enter, !, and Backspace keys
+
+
+def test_key_bindings(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test key bindings functionality."""
+    # Get key bindings
+    kb = setup_keybindings(cli_instance)
+
+    # Create mock event and buffer for testing
+    mock_buffer = mocker.MagicMock()
+    mock_app = mocker.MagicMock()
+    mock_event = mocker.MagicMock()
+    mock_event.app = mock_app
+    mock_event.app.current_buffer = mock_buffer
+    mock_event.current_buffer = mock_buffer
+    mock_event.key_sequence = [None]  # Just to have something
+
+    # Find the handlers for specific keys
+    ctrl_c_handler = None
+    bang_handler = None
+    backspace_handler = None
+
+    for binding in kb.bindings:
+        key = binding.keys[0]
+        # Check the key value directly - Keys.ControlC etc. are the values themselves
+        if key == Keys.ControlC:
+            ctrl_c_handler = binding.handler
+        elif key == "!":
+            bang_handler = binding.handler
+        elif key == Keys.Backspace:
+            backspace_handler = binding.handler
+
+    assert ctrl_c_handler is not None
+    assert bang_handler is not None
+    assert backspace_handler is not None
+
+    # Test '!' handler for changing modes
+    cli_instance.mode = CLIMode.NORMAL
+    bang_handler(mock_event)
+    assert cli_instance.mode == CLIMode.SHELL
+
+    # Test Backspace handler - reset to normal mode if buffer empty
+    cli_instance.mode = CLIMode.SHELL
+    mock_buffer.cursor_position = 0  # Simulate cursor at beginning
+    backspace_handler(mock_event)
+    assert cli_instance.mode == CLIMode.NORMAL
+
+    # Test Ctrl+C handler with text in buffer
+    cli_instance.mode = CLIMode.SHELL
+    mock_buffer.text = "test text"
+    ctrl_c_handler(mock_event)
+    # Should clear buffer
+    assert mock_buffer.text == ""
+    # Should reset to normal mode
+    assert cli_instance.mode == CLIMode.NORMAL
 
 
 def test_run_interactive_loop_eof(cli_instance: CLI, mocker: MockerFixture) -> None:
@@ -153,6 +209,114 @@ def test_run_interactive_loop_eof(cli_instance: CLI, mocker: MockerFixture) -> N
     assert (
         mock_print.call_count >= 1
     )  # At least once for welcome and once for EOF message
+
+
+def test_set_mode(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test the set_mode method."""
+    # Mock session to avoid app.invalidate() calls
+    mock_app = mocker.MagicMock()
+    cli_instance.session.app = mock_app  # type: ignore
+    cli_instance.session.message = None  # type: ignore
+
+    # Test switching from NORMAL to SHELL
+    assert cli_instance.mode == CLIMode.NORMAL
+    result = cli_instance.set_mode(CLIMode.SHELL)
+    assert result is True  # Mode was changed
+    assert cli_instance.mode == CLIMode.SHELL
+
+    # Test trying to set the same mode (should return False)
+    result = cli_instance.set_mode(CLIMode.SHELL)
+    assert result is False  # Mode was not changed
+    assert cli_instance.mode == CLIMode.SHELL
+
+    # Test switching back to NORMAL
+    result = cli_instance.set_mode(CLIMode.NORMAL)
+    assert result is True  # Mode was changed
+    assert cli_instance.mode == CLIMode.NORMAL
+
+    # Test invalid mode
+    with pytest.raises(ValueError):
+        # Need to use type ignore as mypy will catch this error
+        cli_instance.set_mode("invalid_mode")  # type: ignore
+
+
+def test_execute_command(cli_instance: CLI, mocker: MockerFixture) -> None:
+    """Test the execute_command method."""
+    # Mock subprocess.run
+    mock_result = mocker.MagicMock()
+    mock_result.stdout = "command output"
+    mock_result.stderr = "error output"
+
+    mock_run = mocker.patch("subprocess.run", return_value=mock_result)
+
+    # Test normal command execution
+    output = cli_instance.execute_command("test command")
+
+    # Verify subprocess.run was called correctly
+    mock_run.assert_called_once_with(
+        "test command",
+        shell=True,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    # Verify output format includes both stdout and stderr
+    assert "command output" in output
+    assert "error output" in output
+
+    # Test exception handling
+    mock_run.side_effect = Exception("test error")
+    output = cli_instance.execute_command("problem command")
+    assert "Error executing command: test error" in output
+
+
+def test_shell_mode_in_interactive_loop(
+    cli_instance: CLI, mocker: MockerFixture
+) -> None:
+    """Test shell command handling in interactive mode."""
+    # Mock print_formatted_text to avoid console output
+    mocker.patch("simple_agent.cli.prompt.print_formatted_text")
+
+    # Mock set_mode method to track calls and avoid real mode switching
+    original_set_mode = cli_instance.set_mode
+    mock_set_mode = mocker.MagicMock(wraps=original_set_mode)
+    cli_instance.set_mode = mock_set_mode  # type: ignore
+
+    # Mock session.prompt for different input scenarios
+    mock_prompt = mocker.MagicMock()
+    # First return normal mode prompt, then mock shell mode
+    cli_instance.session.prompt = mock_prompt  # type: ignore
+
+    # Test with shell command first (like "ls"), then exit
+    mock_prompt.side_effect = ["ls", "/exit"]
+
+    # Mock execute_command to avoid real command execution
+    mock_execute = mocker.MagicMock(return_value="command output")
+    cli_instance.execute_command = mock_execute  # type: ignore
+
+    # Mock process_input to verify command processing
+    mock_process_input = mocker.MagicMock()
+    cli_instance.process_input = mock_process_input  # type: ignore
+
+    # Set up shell mode for first input
+    cli_instance.mode = CLIMode.SHELL
+
+    # Run the interactive loop
+    cli_instance.run_interactive_loop()
+
+    # Verify execute_command was called with "ls"
+    mock_execute.assert_called_once_with("ls")
+
+    # Verify mode was reset to NORMAL after command execution
+    assert mock_set_mode.call_args_list[-1][0][0] == CLIMode.NORMAL
+
+    # Verify process_input was called with formatted shell output
+    assert mock_process_input.call_count == 1
+    args = mock_process_input.call_args[0][0]
+    assert "Command:" in args
+    assert "$ ls" in args
+    assert "Output:" in args
 
 
 def test_create_rich_formatted_response() -> None:

@@ -1,7 +1,9 @@
 """Prompt Toolkit interface for Simple Agent."""
 
 import os
+import subprocess
 from collections.abc import Callable
+from enum import Enum
 
 from prompt_toolkit import PromptSession, print_formatted_text
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -15,6 +17,17 @@ from prompt_toolkit.styles import Style
 from rich.console import Console
 
 from simple_agent.cli.completion import Completer
+
+
+class CLIMode(Enum):
+    """Enumeration for CLI modes."""
+
+    NORMAL = "normal"
+    SHELL = "shell"
+
+
+NORMAL_PROMPT = HTML("<prompt.arrow>></prompt.arrow> ")
+SHELL_PROMPT = HTML("<prompt.arrow>!</prompt.arrow> ")
 
 # Help text for the CLI
 HELP_TEXT = """
@@ -30,6 +43,7 @@ The agent can:
 • [green]/help[/green]:  Show this help message
 • [green]/clear[/green]: Clear the terminal screen
 • [green]/exit[/green]:  Exit the agent
+• [green]![/green]:      Run a shell command
 
 [bold]Input features:[/bold]
 • End a line with [green]\\ [/green]for aligned multi-line input
@@ -42,19 +56,52 @@ The agent can:
 """
 
 
-def setup_keybindings() -> KeyBindings:
+def setup_keybindings(cli: "CLI") -> KeyBindings:
     """Set up key bindings for the prompt session."""
     kb = KeyBindings()
 
     @kb.add(Keys.ControlC)
     def _(event: KeyPressEvent) -> None:
-        """Ctrl-C handler."""
-        event.app.exit(exception=KeyboardInterrupt())
+        """Ctrl-C handler that clears input or exits."""
+        # Get buffer
+        buffer = event.app.current_buffer
+
+        # If there is nothing to clear, exit the application
+        if cli.mode == CLIMode.NORMAL and not buffer.text:
+            event.app.exit(exception=KeyboardInterrupt())
+
+        # Clear the buffer
+        buffer.text = ""
+
+        # Reset to normal mode
+        cli.set_mode(CLIMode.NORMAL)
 
     @kb.add(Keys.ControlD)
     def _(event: KeyPressEvent) -> None:
         """Ctrl-D handler."""
         event.app.exit(exception=EOFError())
+
+    @kb.add("!")
+    def _(event: KeyPressEvent) -> None:
+        if cli.set_mode(CLIMode.SHELL):
+            return
+
+        # If we're in shell mode, insert a "!" at the cursor position
+        buffer = event.current_buffer
+        buffer.insert_text("!")
+        return
+
+    @kb.add(Keys.Backspace)
+    def _(event: KeyPressEvent) -> None:
+        """Backspace handler to reset mode when buffer is empty."""
+        buffer = event.app.current_buffer
+
+        # If buffer is empty and we're in shell mode, reset to normal mode
+        if buffer.cursor_position == 0 and cli.set_mode(CLIMode.NORMAL):
+            return
+
+        # Let the backspace perform its normal function
+        buffer.delete_before_cursor(1)
 
     @kb.add(Keys.Enter)
     def _(event: KeyPressEvent) -> None:
@@ -66,7 +113,8 @@ def setup_keybindings() -> KeyBindings:
         current_line = buffer.document.current_line
         if current_line.endswith("\\"):
             # Remove the backslash
-            buffer.delete_before_cursor(1)
+            if cli.mode == CLIMode.NORMAL:
+                buffer.delete_before_cursor(1)
 
             # Insert a newline (multiline mode will handle the indentation)
             buffer.newline()
@@ -92,6 +140,7 @@ class CLI:
         """
         self.console = Console()
         self.process_input = process_input_callback
+        self.mode = CLIMode.NORMAL
 
         # Set up prompt style
         self.style = Style.from_dict(
@@ -128,7 +177,7 @@ class CLI:
             history=history,
             auto_suggest=AutoSuggestFromHistory(),
             completer=Completer(),
-            key_bindings=setup_keybindings(),
+            key_bindings=setup_keybindings(self),
             style=self.style,
             complete_while_typing=True,
             complete_in_thread=True,  # Perform completion in a background thread
@@ -144,6 +193,50 @@ class CLI:
         """Display help information."""
         self.console.print(HELP_TEXT)
 
+    def set_mode(self, mode: CLIMode) -> bool:
+        if self.mode == mode:
+            return False
+        self.mode = mode
+        if self.mode == CLIMode.NORMAL:
+            self.session.message = NORMAL_PROMPT
+        elif self.mode == CLIMode.SHELL:
+            self.session.message = SHELL_PROMPT
+        else:
+            raise ValueError(f"Invalid mode: {mode}")
+        self.session.app.invalidate()
+        return True
+
+    def execute_command(self, command: str) -> str:
+        """Execute a bash command and return the output.
+
+        Args:
+            command: The command to execute
+
+        Returns:
+            The command output (stdout and stderr)
+        """
+        try:
+            # Run the command using the shell
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            # Combine stdout and stderr for display
+            output = result.stdout
+            if result.stderr:
+                if output:
+                    output += "\n" + result.stderr
+                else:
+                    output = result.stderr
+
+            return output
+        except Exception as e:
+            return f"Error executing command: {e}"
+
     def run_interactive_loop(self) -> None:
         """Run the interactive prompt loop."""
         # Display welcome message with styling
@@ -154,6 +247,7 @@ class CLI:
 ┃ \033[32m/help\033[0m      \033[90m for available commands \033[1;37m┃
 ┃ \033[32m/clear\033[0m     \033[90m to clear the screen    \033[1;37m┃
 ┃ \033[32m/exit\033[0m      \033[90m to quit                \033[1;37m┃
+┃ \033[32m!\033[0m          \033[90m to run a shell command \033[1;37m┃
 ┃ \033[32m\\ + Enter\033[0m  \033[90m to create a newline    \033[1;37m┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
@@ -163,7 +257,7 @@ class CLI:
             try:
                 # Get input from user with proper formatting and completions
                 user_input = self.session.prompt(
-                    HTML("<prompt.arrow>></prompt.arrow> "),
+                    NORMAL_PROMPT,
                     complete_in_thread=True,
                 )
 
@@ -184,10 +278,31 @@ class CLI:
                     clear()
                     continue
 
+                if self.mode == CLIMode.SHELL:
+
+                    # Print the command being executed
+                    print_formatted_text(ANSI(f"\033[36m$ {user_input}\033[0m"))
+
+                    # Execute the command
+                    output = self.execute_command(user_input)
+
+                    # Display the output
+                    if output:
+                        print_formatted_text(ANSI(f"{output}"))
+
+                    # Format combined input for the agent context
+                    context_message = f"Command:\n```bash\n$ {user_input}\n```\nOutput:\n```\n{output}\n```"
+
+                    # Process the command and output as a message to the agent
+                    self.process_input(context_message)
+                    self.set_mode(CLIMode.NORMAL)
+                    continue
+
                 # Process normal input
                 self.process_input(user_input)
 
             except KeyboardInterrupt:
+                # If Ctrl+C was pressed with empty buffer, we'll get here
                 print_formatted_text(ANSI("\n\033[33mInterrupted. Exiting.\033[0m"))
                 break
             except EOFError:

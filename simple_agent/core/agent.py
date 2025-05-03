@@ -6,7 +6,7 @@ from typing import Any
 
 from rich.console import Console
 
-from simple_agent.cli.prompt import CLI
+from simple_agent.cli.prompt import CLI, CLIMode
 from simple_agent.core.schema import AgentResponse, AgentStatus
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 from simple_agent.llm.client import LLMClient
@@ -95,12 +95,12 @@ class Agent:
             self.tool_handler.input_func = input_func
 
         # Create CLI instance with callback to process input
-        cli = CLI(
+        self.cli = CLI(
             process_input_callback=self._process_input,
         )
 
         # Run the interactive prompt loop
-        cli.run_interactive_loop()
+        self.cli.run_interactive_loop()
 
     def _process_input(self, user_input: str) -> None:
         """Process user input and generate a response.
@@ -118,6 +118,8 @@ class Agent:
         """
         # Update context with user message
         self.context.append({"role": "user", "content": message})
+        if self.cli.mode != CLIMode.NORMAL:
+            return
 
         # Process the request with tool call handling (using a loop)
         max_iterations = 20  # Prevent infinite loops
