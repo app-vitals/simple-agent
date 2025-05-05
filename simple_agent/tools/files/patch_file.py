@@ -36,11 +36,11 @@ def patch_file(file_path: str, old_content: str, new_content: str) -> bool:
 
         # Display success message
         print_tool_result(
-            "patch_file", f"Successfully patched file {clean_path(file_path)}"
+            "patch_file", f"Successfully patched file '{clean_path(file_path)}'"
         )
         return True
     except Exception as e:
-        display_warning(f"Error patching file {clean_path(file_path)}", e)
+        display_warning(f"Error patching file '{clean_path(file_path)}'", e)
         return False
 
 

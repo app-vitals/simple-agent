@@ -16,7 +16,6 @@ from simple_agent.display import (
     display_exit,
     display_info,
     display_response,
-    display_success,
     display_warning,
     format_tool_args,
     get_confirmation,
@@ -192,15 +191,6 @@ def test_get_confirmation_explicit_no(mock_prompt: MagicMock) -> None:
         mock_prompt.return_value = response
         result = get_confirmation("Proceed?")
         assert result is False
-
-
-@patch("simple_agent.display.console.print")
-def test_display_success(mock_print: MagicMock) -> None:
-    """Test display_success."""
-    display_success("Operation completed")
-
-    # Should print success message with formatting
-    mock_print.assert_called_once_with("[green]Success:[/green] Operation completed")
 
 
 @patch("simple_agent.display.console.print")

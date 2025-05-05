@@ -170,15 +170,6 @@ def get_confirmation(message: str, default: bool = True) -> bool:
     return result.lower() in ["y", "yes"]
 
 
-def display_success(message: str) -> None:
-    """Display formatted success message.
-
-    Args:
-        message: Success message to display
-    """
-    console.print(f"[green]Success:[/green] {message}")
-
-
 def display_exit(reason: str) -> None:
     """Display formatted exit message.
 
