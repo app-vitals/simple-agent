@@ -6,7 +6,6 @@ from select import select
 
 from simple_agent.display import (
     display_command,
-    display_command_output,
     display_warning,
     print_tool_call,
 )
@@ -49,7 +48,8 @@ def execute_command(command: str) -> tuple[str, str, int]:
             if process.stdout in rlist and process.stdout is not None:
                 output = process.stdout.readline()
                 if output:
-                    display_command_output(output.rstrip())
+                    sys.stderr.write(output)
+                    sys.stderr.flush()
                     stdout_capture.append(output)
 
             if process.stderr in rlist and process.stderr is not None:
@@ -64,7 +64,8 @@ def execute_command(command: str) -> tuple[str, str, int]:
                 # Read any remaining output
                 if process.stdout is not None:
                     for output in process.stdout:
-                        display_command_output(output.rstrip())
+                        sys.stdout.write(output)
+                        sys.stdout.flush()
                         stdout_capture.append(output)
 
                 if process.stderr is not None:

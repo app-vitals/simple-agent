@@ -97,15 +97,6 @@ def display_command(command: str) -> None:
     console.print(f"[cyan]$ {command}[/cyan]")
 
 
-def display_command_output(output: str) -> None:
-    """Display shell command output.
-
-    Args:
-        output: The output text from a shell command
-    """
-    console.print(output)
-
-
 def get_confirmation(message: str, default: bool = True) -> bool:
     """Get user confirmation with standardized formatting.
 

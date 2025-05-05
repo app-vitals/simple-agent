@@ -5,7 +5,6 @@ import re
 from pathlib import Path
 
 from simple_agent.display import (
-    display_info,
     display_warning,
     print_tool_call,
     print_tool_result,
@@ -145,9 +144,6 @@ def grep_files(
                     files_to_search.append(file)
 
         # Perform the search
-        display_info(
-            f"Searching in {len(files_to_search)} files for pattern '{pattern}'"
-        )
         result: dict[str, list[tuple[int, str]]] = {}
         total_matches = 0
 

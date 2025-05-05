@@ -1,7 +1,6 @@
 """Prompt Toolkit interface for Simple Agent."""
 
 import os
-import subprocess
 from collections.abc import Callable
 from enum import Enum
 
@@ -18,12 +17,11 @@ from prompt_toolkit.styles import Style
 from simple_agent.cli.completion import Completer
 from simple_agent.display import (
     console,
-    display_command,
-    display_command_output,
     display_error,
     display_exit,
     display_warning,
 )
+from simple_agent.tools import execute_command
 
 
 class CLIMode(Enum):
@@ -72,6 +70,15 @@ def setup_keybindings(cli: "CLI") -> KeyBindings:
 
     @kb.add("!")
     def _(event: KeyPressEvent) -> None:
+        # Get buffer
+        buffer = event.app.current_buffer
+
+        if buffer.text:
+            # If there's already text, insert a "!" at the cursor position
+            buffer = event.current_buffer
+            buffer.insert_text("!")
+            return
+
         if cli.set_mode(CLIMode.SHELL):
             return
 
@@ -229,37 +236,6 @@ class CLI:
         self.session.app.invalidate()
         return True
 
-    def execute_command(self, command: str) -> str:
-        """Execute a bash command and return the output.
-
-        Args:
-            command: The command to execute
-
-        Returns:
-            The command output (stdout and stderr)
-        """
-        try:
-            # Run the command using the shell
-            result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            # Combine stdout and stderr for display
-            output = result.stdout
-            if result.stderr:
-                if output:
-                    output += "\n" + result.stderr
-                else:
-                    output = result.stderr
-
-            return output
-        except Exception as e:
-            return f"Error executing command: {e}"
-
     def run_interactive_loop(self) -> None:
         """Run the interactive prompt loop."""
         # Display welcome message with styling
@@ -305,18 +281,11 @@ class CLI:
                     continue
 
                 if self.mode == CLIMode.SHELL:
-                    # Print the command being executed
-                    display_command(user_input)
-
                     # Execute the command
-                    output = self.execute_command(user_input)
-
-                    # Display the output
-                    if output:
-                        display_command_output(output)
+                    stdout, stderr, return_code = execute_command(user_input)
 
                     # Format combined input for the agent context
-                    context_message = f"Command:\n```bash\n$ {user_input}\n```\nOutput:\n```\n{output}\n```"
+                    context_message = f"Command:\n```bash\n$ {user_input}\n```\nOutput:\n```\n{stdout}\n{stderr}\n```\nReturn code: {return_code}\n"
 
                     # Process the command and output as a message to the agent
                     self.process_input(context_message)

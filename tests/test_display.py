@@ -8,7 +8,6 @@ from rich.traceback import Traceback
 from simple_agent.display import (
     console,
     display_command,
-    display_command_output,
     display_error,
     display_exit,
     display_info,
@@ -140,15 +139,6 @@ def test_display_command(mock_print: MagicMock) -> None:
 
     # Should print command with formatting
     mock_print.assert_called_once_with("[cyan]$ ls -la[/cyan]")
-
-
-@patch("simple_agent.display.console.print")
-def test_display_command_output(mock_print: MagicMock) -> None:
-    """Test display_command_output."""
-    display_command_output("file1.txt\nfile2.txt")
-
-    # Should print output as is
-    mock_print.assert_called_once_with("file1.txt\nfile2.txt")
 
 
 @patch("simple_agent.display.prompt")
