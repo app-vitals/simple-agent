@@ -64,9 +64,6 @@ class TestToolHandler:
             "simple_agent.core.tool_handler.execute_tool_call",
             return_value="test result",
         )
-        mock_console = MagicMock(spec=Console)
-        mock_console.print = MagicMock()
-        handler.console = mock_console
 
         # Create a mock tool call
         mock_tool_call = mocker.MagicMock()
@@ -83,11 +80,6 @@ class TestToolHandler:
         # Verify the functions were called correctly
         mock_requires_confirmation.assert_called_once_with("test_tool")
         mock_execute_tool_call.assert_called_once_with("test_tool", {"arg": "value"})
-
-        # Verify console output
-        handler.console.print.assert_called_once_with(
-            "[bold blue]Executing tool:[/bold blue] test_tool"
-        )
 
         # Verify the result contains the original message plus the tool response
         assert len(result) == 2

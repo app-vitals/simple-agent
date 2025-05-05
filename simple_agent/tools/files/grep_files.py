@@ -7,6 +7,7 @@ from pathlib import Path
 from rich.console import Console
 
 from simple_agent.tools.registry import register
+from simple_agent.tools.utils import print_tool_call
 
 
 def grep_files(
@@ -37,7 +38,18 @@ def grep_files(
         Dictionary mapping file paths to lists of (line_number, line_content) tuples
     """
     console = Console()
-    console.print(f"[bold blue]Searching for pattern:[/bold blue] {pattern}")
+
+    # Create a kwargs dictionary with all provided arguments
+    kwargs: dict[str, object] = {}
+    if file_paths:
+        kwargs["file_paths"] = file_paths
+    if directory:
+        kwargs["directory"] = directory
+    if include_pattern:
+        kwargs["include_pattern"] = include_pattern
+
+    # Print the tool call with cleaned paths
+    print_tool_call("grep_files", pattern, **kwargs)
 
     try:
         # Compile the pattern

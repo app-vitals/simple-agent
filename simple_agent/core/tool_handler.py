@@ -121,9 +121,6 @@ class ToolHandler:
                         continue
 
                 # Execute the tool
-                self.console.print(
-                    f"[bold blue]Executing tool:[/bold blue] {tool_name}"
-                )
                 result = execute_tool_call(tool_name, arguments)
 
                 # Add tool response to messages

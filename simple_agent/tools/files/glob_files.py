@@ -7,6 +7,7 @@ from pathlib import Path
 from rich.console import Console
 
 from simple_agent.tools.registry import register
+from simple_agent.tools.utils import print_tool_call
 
 
 def glob_files(
@@ -27,7 +28,11 @@ def glob_files(
         List of file paths matching the pattern
     """
     console = Console()
-    console.print(f"[bold blue]Searching for files:[/bold blue] {pattern}")
+    # Print the tool call with cleaned paths
+    if base_dir == ".":
+        print_tool_call("glob_files", pattern)
+    else:
+        print_tool_call("glob_files", pattern, base_dir=base_dir)
 
     try:
         # Convert base_dir to absolute path and resolve any symlinks
@@ -90,7 +95,6 @@ def glob_files(
         # Sort files by modification time (newest first)
         result.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 
-        console.print(f"[bold green]Found:[/bold green] {len(result)} files")
         return result
 
     except Exception as e:

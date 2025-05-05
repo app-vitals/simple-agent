@@ -130,13 +130,9 @@ class Agent:
         iteration = 0
 
         while iteration < max_iterations:
-            # Log the current step
+            # Log the current step only for the initial processing
             if iteration == 0:
                 self.console.print("[bold]Processing...[/bold]")
-            else:
-                self.console.print(
-                    f"[bold]Processing tool result (step {iteration})...[/bold]"
-                )
 
             # Send to LLM
             response = self._send_llm_request(self.context)

@@ -7,6 +7,7 @@ from typing import Any
 from rich.console import Console
 
 from simple_agent.tools.registry import register
+from simple_agent.tools.utils import print_tool_call
 
 
 def list_directory(
@@ -27,7 +28,8 @@ def list_directory(
         Dictionary with directory structure information
     """
     console = Console()
-    console.print(f"[bold blue]Listing directory:[/bold blue] {directory_path}")
+    # Print the tool call with cleaned path
+    print_tool_call("list_directory", directory_path)
 
     try:
         path = Path(directory_path).expanduser().resolve()

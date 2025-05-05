@@ -19,15 +19,28 @@ def read_files(file_paths: list[str]) -> dict[str, str | None]:
     console = Console()
     results: dict[str, str | None] = {}
 
-    # Print summary if reading multiple files
-    if len(file_paths) > 1:
-        console.print(
-            f"[bold blue]Reading multiple files:[/bold blue] {len(file_paths)} files"
-        )
+    # For read_files, we want a special format with just filenames in a list
+    cwd = str(Path.cwd())
+    clean_paths = []
+
+    for path in file_paths:
+        if path.startswith(cwd):
+            # If path starts with CWD, remove it to get a relative path
+            rel_path = path[len(cwd) :].lstrip("/") or path.split("/")[-1]
+            clean_paths.append(rel_path)
+        else:
+            # Otherwise use the basename
+            clean_paths.append(path.split("/")[-1] if "/" in path else path)
+
+    # Print formatted output
+    if len(clean_paths) == 1:
+        console.print(f"read_files({clean_paths[0]})")
+    else:
+        paths_str = ", ".join(clean_paths)
+        console.print(f"read_files({paths_str})")
 
     # Read each file
     for path in file_paths:
-        console.print(f"[bold blue]Reading:[/bold blue] {path}")
         try:
             results[path] = Path(path).read_text()
         except Exception as e:
