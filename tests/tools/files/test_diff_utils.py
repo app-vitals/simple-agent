@@ -173,7 +173,7 @@ def test_write_file_confirmation_handler(
 
     # Should call show_git_diff_confirmation with the right args
     mock_show_confirmation.assert_called_once_with(
-        "sample diff", "write_file", mock_input_func
+        "sample diff", "write_file", mock_input_func, {"file_path": "/path/to/file.txt"}
     )
 
     # Should return the result from show_git_diff_confirmation
@@ -210,7 +210,7 @@ def test_patch_file_confirmation_handler(
 
     # Should call show_git_diff_confirmation with the right args
     mock_show_confirmation.assert_called_once_with(
-        "sample diff", "patch_file", mock_input_func
+        "sample diff", "patch_file", mock_input_func, {"file_path": "/path/to/file.txt"}
     )
 
     # Should return the result from show_git_diff_confirmation

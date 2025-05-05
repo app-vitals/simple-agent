@@ -107,7 +107,10 @@ def get_file_diff_for_patch(file_path: str, old_content: str, new_content: str) 
 
 
 def show_git_diff_confirmation(
-    diff_content: str, tool_name: str, input_func: Callable[[str], str]
+    diff_content: str,
+    tool_name: str,
+    input_func: Callable[[str], str],
+    tool_args: dict[str, Any] | None = None,
 ) -> bool:
     """Show a git diff-like view and prompt for confirmation.
 
@@ -115,6 +118,7 @@ def show_git_diff_confirmation(
         diff_content: Git diff-like content to display
         tool_name: Name of the tool being executed
         input_func: Function to use for getting user input
+        tool_args: Arguments passed to the tool
 
     Returns:
         True if user confirms, False if denied
@@ -127,9 +131,16 @@ def show_git_diff_confirmation(
     console.print(syntax)
     console.print("\n")
 
+    # Format the tool arguments if they exist
+    args_display = ""
+    if tool_args:
+        from simple_agent.tools.utils import format_tool_args
+
+        args_display = f"({format_tool_args(**tool_args)})"
+
     # For test input function, use a simple prompt
     if input_func != input:
-        confirmation = input_func(f"Confirm {tool_name}? [Y/n] ")
+        confirmation = input_func(f"Confirm {tool_name}{args_display}? [Y/n] ")
     else:
         # Create a styled confirmation prompt
         confirmation_style = Style.from_dict(
@@ -137,13 +148,15 @@ def show_git_diff_confirmation(
                 "tool": "ansibrightyellow bold",
                 "prompt": "ansiyellow",
                 "highlight": "ansibrightgreen",
+                "args": "ansibrightcyan",
             }
         )
 
-        # HTML-formatted prompt that highlights the tool name
+        # HTML-formatted prompt that highlights the tool name and arguments
         confirm_prompt = HTML(
             f"<prompt>Confirm </prompt>"
             f"<tool>{tool_name}</tool>"
+            f"<args>{args_display}</args>"
             f"<prompt>? </prompt><highlight>[Y/n]</highlight> "
         )
 
@@ -176,8 +189,11 @@ def write_file_confirmation_handler(
     # Generate a diff view for the file
     diff_content = get_file_diff_for_write(file_path, content)
 
+    # Create a simplified version of tool_args with only the file_path
+    display_args = {"file_path": file_path}
+
     # Show the diff and get confirmation
-    return show_git_diff_confirmation(diff_content, tool_name, input_func)
+    return show_git_diff_confirmation(diff_content, tool_name, input_func, display_args)
 
 
 def patch_file_confirmation_handler(
@@ -200,5 +216,8 @@ def patch_file_confirmation_handler(
     # Generate a diff view for the patch
     diff_content = get_file_diff_for_patch(file_path, old_content, new_content)
 
+    # Create a simplified version of tool_args with only the file_path
+    display_args = {"file_path": file_path}
+
     # Show the diff and get confirmation
-    return show_git_diff_confirmation(diff_content, tool_name, input_func)
+    return show_git_diff_confirmation(diff_content, tool_name, input_func, display_args)
