@@ -60,8 +60,10 @@ def test_grep_files(mocker: MockerFixture) -> None:
     with open(binary_file, "wb") as binary_f:
         binary_f.write(b"\x00\x01\x02\x03\x04")
 
-    # Mock console.print to avoid output in tests
-    mocker.patch("simple_agent.tools.files.grep_files.Console.print")
+    # Mock display functions to avoid output in tests
+    mocker.patch("simple_agent.tools.files.grep_files.print_tool_call")
+    mocker.patch("simple_agent.tools.files.grep_files.print_tool_result")
+    mocker.patch("simple_agent.tools.files.grep_files.display_warning")
 
     try:
         # Test basic pattern search across multiple files

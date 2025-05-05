@@ -4,11 +4,16 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-from rich.console import Console
-
 from simple_agent.cli.prompt import CLI, CLIMode
 from simple_agent.core.schema import AgentResponse, AgentStatus
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
+from simple_agent.display import (
+    console,
+    display_error,
+    display_info,
+    display_response,
+    display_warning,
+)
 from simple_agent.llm.client import LLMClient
 
 SYSTEM_PROMPT = """You are Simple Agent, a command line assistant built on Unix philosophy principles.
@@ -79,7 +84,6 @@ class Agent:
         """Initialize the agent."""
         # Initialize context with system prompt
         self.context: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
-        self.console = Console()
         self.llm_client = LLMClient()
         self.tool_handler = ToolHandler()
         self.tools = get_tools_for_llm()
@@ -112,7 +116,7 @@ class Agent:
             self._handle_ai_request(user_input)
         except KeyboardInterrupt:
             # Handle Ctrl+C gracefully
-            self.console.print("\n[bold yellow]Interrupted by user...[/bold yellow]")
+            display_warning("Interrupted by user...")
 
     def _handle_ai_request(self, message: str) -> None:
         """Process a request through the AI model and handle tools if needed.
@@ -132,15 +136,13 @@ class Agent:
         while iteration < max_iterations:
             # Log the current step only for the initial processing
             if iteration == 0:
-                self.console.print("[bold]Processing...[/bold]")
+                display_info("Processing...")
 
             # Send to LLM
             response = self._send_llm_request(self.context)
 
             if not response:
-                self.console.print(
-                    "[bold red]Error:[/bold red] Failed to get a response"
-                )
+                display_error("Failed to get a response")
                 return
 
             # Extract content and check for tool calls
@@ -152,9 +154,7 @@ class Agent:
                 if content is not None:
                     self._process_llm_response(content, response)
                 else:
-                    self.console.print(
-                        "[bold red]Error:[/bold red] Empty response from LLM"
-                    )
+                    display_error("Empty response from LLM")
                 return
 
             # Handle tool calls
@@ -172,9 +172,7 @@ class Agent:
             iteration += 1
 
         # If we've reached the maximum iterations, warn the user
-        self.console.print(
-            "[bold yellow]Warning:[/bold yellow] Maximum tool call iterations reached"
-        )
+        display_warning("Maximum tool call iterations reached")
 
     def _send_llm_request(self, messages: list[dict]) -> Any | None:
         """Send a request to the LLM.
@@ -199,7 +197,7 @@ class Agent:
             response: The full response object
         """
         if not content:
-            self.console.print("[bold red]Error:[/bold red] Empty response from LLM")
+            display_error("Empty response from LLM")
             return
 
         # Parse the JSON response
@@ -208,41 +206,32 @@ class Agent:
             json_response = json.loads(content)
             structured_response = AgentResponse.model_validate(json_response)
 
-            # Display the message to the user
-            self.console.print(structured_response.message)
+            # Display the response using our helper
+            display_response(
+                structured_response.message,
+                structured_response.status.value,
+                structured_response.next_action,
+            )
 
-            # Handle the different statuses
-            if structured_response.status == AgentStatus.CONTINUE:
-                # Agent knows what to do next
-                if structured_response.next_action:
-                    self.console.print(
-                        f"[bold blue]Next action:[/bold blue] {structured_response.next_action}"
-                    )
-
-                    # Continue with the next action
-                    self.console.print(
-                        f"[dim]Next Action: {structured_response.next_action}[/dim]"
-                    )
-                    continuation_prompt = (
-                        f"Please continue by {structured_response.next_action}"
-                    )
-                    self._handle_ai_request(continuation_prompt)
-
-            elif (
-                structured_response.status == AgentStatus.ASK
+            # Continue with the next action if needed
+            if (
+                structured_response.status == AgentStatus.CONTINUE
                 and structured_response.next_action
             ):
-                # Agent needs user input
-                self.console.print(
-                    f"[bold yellow]Question:[/bold yellow] {structured_response.next_action}"
+                continuation_prompt = (
+                    f"Please continue by {structured_response.next_action}"
                 )
+                self._handle_ai_request(continuation_prompt)
+
+            # Note: ASK status is already handled by display_response
 
             # Keep the raw JSON response in the context for the LLM
             self.context.append({"role": "assistant", "content": content})
 
         except json.JSONDecodeError:
             # Fallback for non-JSON responses
-            self.console.print(content)
+            display_warning("LLM response was not in expected JSON format")
+            console.print(f"[dim]{content}[/dim]")
             self.context.append({"role": "assistant", "content": content})
 
         # Manage context size - keep at most 10 messages

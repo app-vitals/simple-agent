@@ -4,10 +4,13 @@ import glob
 import os
 from pathlib import Path
 
-from rich.console import Console
-
+from simple_agent.display import (
+    clean_path,
+    display_warning,
+    print_tool_call,
+    print_tool_result,
+)
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import print_tool_call
 
 
 def glob_files(
@@ -27,24 +30,34 @@ def glob_files(
     Returns:
         List of file paths matching the pattern
     """
-    console = Console()
     # Print the tool call with cleaned paths
     if base_dir == ".":
-        print_tool_call("glob_files", pattern)
+        print_tool_call(
+            "glob_files",
+            pattern=pattern,
+            recursive=recursive,
+            include_hidden=include_hidden,
+        )
     else:
-        print_tool_call("glob_files", pattern, base_dir=base_dir)
+        print_tool_call(
+            "glob_files",
+            pattern=pattern,
+            base_dir=base_dir,
+            recursive=recursive,
+            include_hidden=include_hidden,
+        )
 
     try:
         # Convert base_dir to absolute path and resolve any symlinks
         base_path = Path(base_dir).expanduser().resolve()
         if not base_path.exists():
-            console.print(
-                f"[bold red]Error:[/bold red] Base directory does not exist: {base_path}"
+            display_warning(
+                f"Base directory does not exist: {clean_path(str(base_path))}"
             )
             return []
 
         if not base_path.is_dir():
-            console.print(f"[bold red]Error:[/bold red] Not a directory: {base_path}")
+            display_warning(f"Not a directory: {clean_path(str(base_path))}")
             return []
 
         # If pattern contains "**", set recursive to True automatically
@@ -90,15 +103,24 @@ def glob_files(
             if not include_hidden and path.name.startswith("."):
                 continue
 
-            result.append(str(path))
+            result.append(str(path))  # Store the full path for accurate sorting
 
         # Sort files by modification time (newest first)
         result.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 
-        return result
+        # Create descriptive message about the result
+        message = f"Found {len(result)} file(s) matching pattern '{pattern}'"
+        if not result:
+            message = f"No files found matching pattern '{pattern}'"
+
+        # Display tool result with message
+        print_tool_result("glob_files", message)
+
+        # Return cleaned paths for display
+        return [clean_path(path) for path in result]
 
     except Exception as e:
-        console.print(f"[bold red]Error during glob search:[/bold red] {e}")
+        display_warning(f"Error during glob search with pattern '{pattern}'", e)
         return []
 
 

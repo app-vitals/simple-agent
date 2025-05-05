@@ -4,10 +4,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
-
+from simple_agent.display import (
+    clean_path,
+    display_warning,
+    print_tool_call,
+    print_tool_result,
+)
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import print_tool_call
 
 
 def list_directory(
@@ -27,19 +30,24 @@ def list_directory(
     Returns:
         Dictionary with directory structure information
     """
-    console = Console()
     # Print the tool call with cleaned path
-    print_tool_call("list_directory", directory_path)
+    print_tool_call(
+        "list_directory",
+        directory_path=directory_path,
+        show_hidden=show_hidden,
+        recursive=recursive,
+        max_depth=max_depth,
+    )
 
     try:
         path = Path(directory_path).expanduser().resolve()
         if not path.exists():
-            console.print(f"[bold red]Error:[/bold red] Path does not exist: {path}")
-            return {"error": f"Path does not exist: {path}"}
+            display_warning(f"Path does not exist: {clean_path(str(path))}")
+            return {"error": f"Path does not exist: {clean_path(str(path))}"}
 
         if not path.is_dir():
-            console.print(f"[bold red]Error:[/bold red] Not a directory: {path}")
-            return {"error": f"Not a directory: {path}"}
+            display_warning(f"Not a directory: {clean_path(str(path))}")
+            return {"error": f"Not a directory: {clean_path(str(path))}"}
 
         result = _scan_directory(
             path,
@@ -48,10 +56,22 @@ def list_directory(
             max_depth=max_depth,
             current_depth=0,
         )
+
+        # Create a descriptive message for the results
+        file_count = len(result["files"])
+        dir_count = len(result["dirs"])
+
+        message = f"Found {file_count} file(s) and {dir_count} directory(ies) in {clean_path(directory_path)}"
+        if recursive:
+            message += f" (max depth: {max_depth})"
+
+        # Print tool result with message
+        print_tool_result("list_directory", message)
+
         return result
 
     except Exception as e:
-        console.print(f"[bold red]Error listing directory:[/bold red] {e}")
+        display_warning(f"Error listing directory: {clean_path(directory_path)}", e)
         return {"error": str(e)}
 
 

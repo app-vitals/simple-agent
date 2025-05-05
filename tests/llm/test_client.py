@@ -39,15 +39,15 @@ def test_client_init(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_send_completion_no_api_key(mocker: MockerFixture) -> None:
     """Test sending a completion with no API key."""
-    client = LLMClient(api_key=None)
-    client.console = mocker.MagicMock()  # type: ignore
+    # Mock display_error function
+    mock_display_error = mocker.patch("simple_agent.llm.client.display_error")
 
+    client = LLMClient(api_key=None)
     result = client.send_completion(messages=[])
 
+    # Verify display_error was called
+    mock_display_error.assert_called_once_with("No API key provided")
     assert result is None
-    client.console.print.assert_called_once_with(  # type: ignore
-        "[bold red]Error:[/bold red] No API key provided"
-    )
 
 
 def test_send_completion_success(client: LLMClient, mocker: MockerFixture) -> None:
@@ -108,15 +108,17 @@ def test_send_completion_with_tools(client: LLMClient, mocker: MockerFixture) ->
 
 def test_send_completion_error(client: LLMClient, mocker: MockerFixture) -> None:
     """Test sending a completion with an error."""
+    # Mock display_error function
+    mock_display_error = mocker.patch("simple_agent.llm.client.display_error")
+
+    # Mock LiteLLM to raise an exception
     mocker.patch("litellm.completion", side_effect=Exception("API error"))
-    client.console = mocker.MagicMock()  # type: ignore
 
     result = client.send_completion([{"role": "user", "content": "test message"}])
 
+    # Verify display_error was called with the error message
+    mock_display_error.assert_called_once_with("API Error: API error")
     assert result is None
-    client.console.print.assert_called_once_with(  # type: ignore
-        "[bold red]API Error:[/bold red] API error"
-    )
 
 
 def test_get_message_content(client: LLMClient, mocker: MockerFixture) -> None:

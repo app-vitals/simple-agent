@@ -5,13 +5,16 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from prompt_toolkit import prompt
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.styles import Style
-from rich.console import Console
 from rich.syntax import Syntax
 
-from simple_agent.tools.utils import clean_path
+from simple_agent.display import (
+    clean_path,
+    console,
+    display_info,
+    display_warning,
+    format_tool_args,
+    get_confirmation,
+)
 
 
 def create_git_diff_view(file_path: str, old_content: str, new_content: str) -> str:
@@ -103,6 +106,7 @@ def get_file_diff_for_patch(file_path: str, old_content: str, new_content: str) 
         updated_content = current_file_content.replace(old_content, new_content)
         return create_git_diff_view(file_path, current_file_content, updated_content)
     except Exception as e:
+        display_warning(f"Error creating diff for {clean_path(file_path)}", e)
         return f"Error creating diff: {e}"
 
 
@@ -123,9 +127,8 @@ def show_git_diff_confirmation(
     Returns:
         True if user confirms, False if denied
     """
-    console = Console()
-
     # Show the diff with syntax highlighting
+    display_info(f"Changes for {tool_name}:")
     console.print("\n")
     syntax = Syntax(diff_content, "diff", theme="ansi_dark")
     console.print(syntax)
@@ -134,40 +137,17 @@ def show_git_diff_confirmation(
     # Format the tool arguments if they exist
     args_display = ""
     if tool_args:
-        from simple_agent.tools.utils import format_tool_args
-
         args_display = f"({format_tool_args(**tool_args)})"
 
     # For test input function, use a simple prompt
     if input_func != input:
         confirmation = input_func(f"Confirm {tool_name}{args_display}? [Y/n] ")
+        if confirmation == "":
+            confirmation = "y"
+        return confirmation.lower() in ["y", "yes"]
     else:
-        # Create a styled confirmation prompt
-        confirmation_style = Style.from_dict(
-            {
-                "tool": "ansibrightyellow bold",
-                "prompt": "ansiyellow",
-                "highlight": "ansibrightgreen",
-                "args": "ansibrightcyan",
-            }
-        )
-
-        # HTML-formatted prompt that highlights the tool name and arguments
-        confirm_prompt = HTML(
-            f"<prompt>Confirm </prompt>"
-            f"<tool>{tool_name}</tool>"
-            f"<args>{args_display}</args>"
-            f"<prompt>? </prompt><highlight>[Y/n]</highlight> "
-        )
-
-        # Get confirmation using prompt_toolkit
-        confirmation = prompt(confirm_prompt, style=confirmation_style)
-
-    # Empty input (just Enter) defaults to yes
-    if confirmation == "":
-        confirmation = "y"
-
-    return confirmation.lower() in ["y", "yes"]
+        # Use the standardized confirmation function from display module
+        return get_confirmation(f"<ansicyan>{tool_name}</ansicyan>{args_display}?")
 
 
 def write_file_confirmation_handler(

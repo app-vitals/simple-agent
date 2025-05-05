@@ -115,34 +115,32 @@ def test_get_file_diff_for_patch_content_not_found(mock_path: MagicMock) -> None
     assert "ERROR: Old content not found" in diff
 
 
-@patch("simple_agent.tools.files.diff_utils.Console")
-@patch("simple_agent.tools.files.diff_utils.prompt")
-def test_show_git_diff_confirmation_yes(mock_prompt: MagicMock, _: MagicMock) -> None:
+@patch("simple_agent.tools.files.diff_utils.get_confirmation")
+def test_show_git_diff_confirmation_yes(mock_get_confirmation: MagicMock) -> None:
     """Test showing a git diff and getting confirmation (user says yes)."""
-    # Mock the prompt to return 'y'
-    mock_prompt.return_value = "y"
+    # Mock get_confirmation to return True (user confirmed)
+    mock_get_confirmation.return_value = True
 
-    # Create a mock input function
+    # Create a mock input function (this should be bypassed for the built-in input function)
     def mock_input_func(_: str) -> str:
         return "y"
 
-    result = show_git_diff_confirmation("sample diff", "test_tool", mock_input_func)
+    # For this test, we'll use Python's built-in input which triggers get_confirmation
+    result = show_git_diff_confirmation("sample diff", "test_tool", input)
 
     # Should return True for confirmation
     assert result is True
+    mock_get_confirmation.assert_called_once()
 
 
-@patch("simple_agent.tools.files.diff_utils.Console")
-@patch("simple_agent.tools.files.diff_utils.prompt")
-def test_show_git_diff_confirmation_no(mock_prompt: MagicMock, _: MagicMock) -> None:
+def test_show_git_diff_confirmation_no() -> None:
     """Test showing a git diff and getting confirmation (user says no)."""
-    # Mock the prompt to return 'n'
-    mock_prompt.return_value = "n"
 
-    # Create a mock input function
+    # Create a custom input function that returns 'n'
     def mock_input_func(_: str) -> str:
         return "n"
 
+    # Test with a custom input function (bypasses get_confirmation)
     result = show_git_diff_confirmation("sample diff", "test_tool", mock_input_func)
 
     # Should return False for rejection
