@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from simple_agent.display import (
-    display_error,
-    display_info,
+    display_warning,
     print_tool_call,
     print_tool_result,
 )
@@ -43,11 +42,11 @@ def list_directory(
     try:
         path = Path(directory_path).expanduser().resolve()
         if not path.exists():
-            display_error(f"Path does not exist: {clean_path(str(path))}")
+            display_warning(f"Path does not exist: {clean_path(str(path))}")
             return {"error": f"Path does not exist: {clean_path(str(path))}"}
 
         if not path.is_dir():
-            display_error(f"Not a directory: {clean_path(str(path))}")
+            display_warning(f"Not a directory: {clean_path(str(path))}")
             return {"error": f"Not a directory: {clean_path(str(path))}"}
 
         result = _scan_directory(
@@ -58,27 +57,21 @@ def list_directory(
             current_depth=0,
         )
 
-        # Display summary of results
+        # Create a descriptive message for the results
         file_count = len(result["files"])
         dir_count = len(result["dirs"])
 
+        message = f"Found {file_count} file(s) and {dir_count} directory(ies) in {clean_path(directory_path)}"
         if recursive:
-            display_info(
-                f"Found {file_count} file(s) and {dir_count} directory(ies) in {clean_path(directory_path)}"
-                + f" (max depth: {max_depth})"
-            )
-        else:
-            display_info(
-                f"Found {file_count} file(s) and {dir_count} directory(ies) in {clean_path(directory_path)}"
-            )
+            message += f" (max depth: {max_depth})"
 
-        # Print tool result
-        print_tool_result("list_directory", result)
+        # Print tool result with message
+        print_tool_result("list_directory", message)
 
         return result
 
     except Exception as e:
-        display_error(f"Error listing directory: {clean_path(directory_path)}", e)
+        display_warning(f"Error listing directory: {clean_path(directory_path)}", e)
         return {"error": str(e)}
 
 

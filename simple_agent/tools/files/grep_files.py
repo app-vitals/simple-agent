@@ -5,7 +5,6 @@ import re
 from pathlib import Path
 
 from simple_agent.display import (
-    display_error,
     display_info,
     display_warning,
     print_tool_call,
@@ -68,7 +67,7 @@ def grep_files(
         try:
             compiled_pattern = re.compile(pattern, flags)
         except re.error as e:
-            display_error(f"Invalid regex pattern: {e}")
+            display_warning(f"Invalid regex pattern: {e}")
             return {"error": [(-1, f"Invalid regex pattern: {e}")]}
 
         # Get the files to search
@@ -91,7 +90,7 @@ def grep_files(
 
             base_path = Path(base_dir).expanduser().resolve()
             if not base_path.exists() or not base_path.is_dir():
-                display_error(f"{clean_path(base_dir)} is not a valid directory")
+                display_warning(f"{clean_path(base_dir)} is not a valid directory")
                 return {
                     "error": [(-1, f"{clean_path(base_dir)} is not a valid directory")]
                 }
@@ -192,19 +191,18 @@ def grep_files(
                 display_warning(f"Error reading {clean_path(file_path)}: {e}")
                 # Continue with other files rather than failing completely
 
-        # Display results summary
-        if total_matches > 0:
-            display_info(f"Found {total_matches} match(es) in {len(result)} file(s)")
-        else:
-            display_info(f"No matches found for pattern '{pattern}'")
+        # Create descriptive message about the result
+        message = f"Found {total_matches} match(es) in {len(result)} file(s)"
+        if total_matches == 0:
+            message = f"No matches found for pattern '{pattern}'"
 
-        # Display tool result
-        print_tool_result("grep_files", result)
+        # Display tool result with message
+        print_tool_result("grep_files", message)
 
         return result
 
     except Exception as e:
-        display_error(f"Error during search with pattern '{pattern}'", e)
+        display_warning(f"Error during search with pattern '{pattern}'", e)
         return {"error": [(-1, str(e))]}
 
 

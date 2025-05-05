@@ -40,8 +40,8 @@ def test_client_init(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_send_completion_no_api_key(mocker: MockerFixture) -> None:
     """Test sending a completion with no API key."""
     # Mock display_error function
-    mock_display_error = mocker.patch('simple_agent.llm.client.display_error')
-    
+    mock_display_error = mocker.patch("simple_agent.llm.client.display_error")
+
     client = LLMClient(api_key=None)
     result = client.send_completion(messages=[])
 
@@ -109,8 +109,8 @@ def test_send_completion_with_tools(client: LLMClient, mocker: MockerFixture) ->
 def test_send_completion_error(client: LLMClient, mocker: MockerFixture) -> None:
     """Test sending a completion with an error."""
     # Mock display_error function
-    mock_display_error = mocker.patch('simple_agent.llm.client.display_error')
-    
+    mock_display_error = mocker.patch("simple_agent.llm.client.display_error")
+
     # Mock LiteLLM to raise an exception
     mocker.patch("litellm.completion", side_effect=Exception("API error"))
 

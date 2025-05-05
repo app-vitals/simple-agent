@@ -32,8 +32,7 @@ def test_glob_files(mocker: MockerFixture) -> None:
     # Mock display functions to avoid output in tests
     mocker.patch("simple_agent.tools.files.glob_files.print_tool_call")
     mocker.patch("simple_agent.tools.files.glob_files.print_tool_result")
-    mocker.patch("simple_agent.tools.files.glob_files.display_error")
-    mocker.patch("simple_agent.tools.files.glob_files.display_info")
+    mocker.patch("simple_agent.tools.files.glob_files.display_warning")
 
     try:
         # Test basic glob matching

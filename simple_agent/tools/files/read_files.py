@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from simple_agent.display import display_error, print_tool_call
+from simple_agent.display import display_warning, print_tool_call
 from simple_agent.tools.registry import register
 from simple_agent.tools.utils import clean_path
 
@@ -29,7 +29,7 @@ def read_files(file_paths: list[str]) -> dict[str, str | None]:
         try:
             results[path] = Path(path).read_text()
         except Exception as e:
-            display_error(f"Error reading file: {clean_path(path)}", e)
+            display_warning(f"Error reading file: {clean_path(path)}", e)
             results[path] = None
 
     return results

@@ -1,11 +1,9 @@
 """Tests for the tool handler module."""
 
 import json
-from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
-from rich.console import Console
 
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 
@@ -105,7 +103,7 @@ class TestToolHandler:
         # Mock get_confirmation from display module instead of directly using console
         mocker.patch(
             "simple_agent.core.tool_handler.get_confirmation",
-            return_value=True  # Simulate user confirming
+            return_value=True,  # Simulate user confirming
         )
 
         # Mock the input function to return 'y'
@@ -139,11 +137,11 @@ class TestToolHandler:
             "simple_agent.core.tool_handler.requires_confirmation", return_value=True
         )
         mock_execute = mocker.patch("simple_agent.core.tool_handler.execute_tool_call")
-        
+
         # Mock get_confirmation from display module
         mocker.patch(
             "simple_agent.core.tool_handler.get_confirmation",
-            return_value=False  # Simulate user denying
+            return_value=False,  # Simulate user denying
         )
 
         # Mock the input function to return 'n'
@@ -172,8 +170,7 @@ class TestToolHandler:
         self, handler: ToolHandler, mocker: MockerFixture
     ) -> None:
         """Test processing tool calls with invalid arguments."""
-        # Mock display_error from display module
-        mock_display_error = mocker.patch("simple_agent.core.tool_handler.display_error")
+        # We don't need to mock display_error here since we're just testing the return value
 
         # Create a mock tool call with invalid JSON arguments
         mock_tool_call = mocker.MagicMock()

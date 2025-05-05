@@ -5,8 +5,7 @@ import os
 from pathlib import Path
 
 from simple_agent.display import (
-    display_error,
-    display_info,
+    display_warning,
     print_tool_call,
     print_tool_result,
 )
@@ -52,13 +51,13 @@ def glob_files(
         # Convert base_dir to absolute path and resolve any symlinks
         base_path = Path(base_dir).expanduser().resolve()
         if not base_path.exists():
-            display_error(
+            display_warning(
                 f"Base directory does not exist: {clean_path(str(base_path))}"
             )
             return []
 
         if not base_path.is_dir():
-            display_error(f"Not a directory: {clean_path(str(base_path))}")
+            display_warning(f"Not a directory: {clean_path(str(base_path))}")
             return []
 
         # If pattern contains "**", set recursive to True automatically
@@ -109,19 +108,18 @@ def glob_files(
         # Sort files by modification time (newest first)
         result.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 
-        # Display results summary
-        if result:
-            display_info(f"Found {len(result)} file(s) matching pattern '{pattern}'")
-        else:
-            display_info(f"No files found matching pattern '{pattern}'")
+        # Create descriptive message about the result
+        message = f"Found {len(result)} file(s) matching pattern '{pattern}'"
+        if not result:
+            message = f"No files found matching pattern '{pattern}'"
 
-        # Display tool result
-        print_tool_result("glob_files", result)
+        # Display tool result with message
+        print_tool_result("glob_files", message)
 
         return result
 
     except Exception as e:
-        display_error(f"Error during glob search with pattern '{pattern}'", e)
+        display_warning(f"Error during glob search with pattern '{pattern}'", e)
         return []
 
 

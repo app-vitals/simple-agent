@@ -21,7 +21,7 @@ from simple_agent.display import (
     display_command,
     display_command_output,
     display_error,
-    display_info,
+    display_exit,
     display_warning,
 )
 
@@ -291,7 +291,7 @@ class CLI:
 
                 # Check for slash commands
                 if user_input.lower() == "/exit":
-                    display_info("Goodbye! Exiting Simple Agent.")
+                    display_exit("Goodbye! Simple Agent shutting down")
                     break
                 elif user_input.lower() == "/help":
                     self.show_help()
@@ -328,10 +328,10 @@ class CLI:
 
             except KeyboardInterrupt:
                 # If Ctrl+C was pressed with empty buffer, we'll get here
-                display_warning("\nInterrupted. Exiting.")
+                display_exit("Interrupted")
                 break
             except EOFError:
-                display_warning("\nReceived EOF. Exiting.")
+                display_exit("Received EOF")
                 break
             except Exception as e:
                 display_error("Unexpected error", e)

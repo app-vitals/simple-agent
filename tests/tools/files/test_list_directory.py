@@ -44,8 +44,7 @@ def test_list_directory(mocker: MockerFixture) -> None:
     # Mock display functions to avoid output in tests
     mocker.patch("simple_agent.tools.files.list_directory.print_tool_call")
     mocker.patch("simple_agent.tools.files.list_directory.print_tool_result")
-    mocker.patch("simple_agent.tools.files.list_directory.display_error")
-    mocker.patch("simple_agent.tools.files.list_directory.display_info")
+    mocker.patch("simple_agent.tools.files.list_directory.display_warning")
 
     try:
         # Test basic directory listing (non-recursive, no hidden files)

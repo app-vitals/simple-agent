@@ -135,6 +135,7 @@ def test_show_git_diff_confirmation_yes(mock_get_confirmation: MagicMock) -> Non
 
 def test_show_git_diff_confirmation_no() -> None:
     """Test showing a git diff and getting confirmation (user says no)."""
+
     # Create a custom input function that returns 'n'
     def mock_input_func(_: str) -> str:
         return "n"

@@ -557,7 +557,7 @@ def test_display_response(mocker: MockerFixture) -> None:
     """Test the display_response function."""
     # Mock console.print to verify output
     mock_print = mocker.patch("simple_agent.display.console.print")
-    
+
     # Test with COMPLETE status
     display_response(
         message="This is a test message",
@@ -565,10 +565,10 @@ def test_display_response(mocker: MockerFixture) -> None:
         next_action=None,
     )
     mock_print.assert_called_with("This is a test message")
-    
+
     # Reset mock
     mock_print.reset_mock()
-    
+
     # Test with CONTINUE status
     display_response(
         message="Working on your request",
@@ -578,11 +578,13 @@ def test_display_response(mocker: MockerFixture) -> None:
     # Should call print twice - once for message, once for next action
     assert mock_print.call_count == 2
     mock_print.assert_any_call("Working on your request")
-    mock_print.assert_any_call("[bold blue]Next:[/bold blue] I will check the documentation next")
-    
+    mock_print.assert_any_call(
+        "[bold blue]Next:[/bold blue] I will check the documentation next"
+    )
+
     # Reset mock
     mock_print.reset_mock()
-    
+
     # Test with ASK status
     display_response(
         message="I found multiple options",
@@ -592,4 +594,6 @@ def test_display_response(mocker: MockerFixture) -> None:
     # Should call print twice - once for message, once for question
     assert mock_print.call_count == 2
     mock_print.assert_any_call("I found multiple options")
-    mock_print.assert_any_call("[bold yellow]Question:[/bold yellow] Which option do you prefer?")
+    mock_print.assert_any_call(
+        "[bold yellow]Question:[/bold yellow] Which option do you prefer?"
+    )

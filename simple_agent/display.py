@@ -85,7 +85,7 @@ def display_info(message: str) -> None:
     Args:
         message: Information text to display
     """
-    console.print(f"[blue]Info:[/blue] {message}")
+    console.print(message)
 
 
 def display_command(command: str) -> None:
@@ -135,6 +135,15 @@ def display_success(message: str) -> None:
     console.print(f"[green]Success:[/green] {message}")
 
 
+def display_exit(reason: str) -> None:
+    """Display formatted exit message.
+
+    Args:
+        reason: The reason for exiting
+    """
+    console.print(f"[bold blue]Exiting:[/bold blue] {reason}")
+
+
 def print_tool_call(tool_name: str, **args: Any) -> None:
     """Print standardized tool execution announcement.
 
@@ -144,23 +153,14 @@ def print_tool_call(tool_name: str, **args: Any) -> None:
     """
     # Format args for display
     args_str = ", ".join(f"{k}={repr(v)}" for k, v in args.items())
-    console.print(f"[bold]Executing[/bold] [cyan]{tool_name}[/cyan]({args_str})")
+    console.print(f"[cyan]{tool_name}[/cyan]({args_str})")
 
 
-def print_tool_result(tool_name: str, result: Any) -> None:
+def print_tool_result(tool_name: str, message: str) -> None:
     """Print standardized tool execution result.
 
     Args:
         tool_name: Name of the tool that was executed
-        result: Result of the tool execution
+        message: Descriptive message about the result
     """
-    if isinstance(result, bool):
-        status = "[green]succeeded[/green]" if result else "[yellow]cancelled[/yellow]"
-        console.print(f"Tool [cyan]{tool_name}[/cyan] {status}")
-    elif isinstance(result, list | dict) and result:
-        # For collections, show the count of items
-        count = len(result)
-        console.print(f"Tool [cyan]{tool_name}[/cyan] returned {count} item(s)")
-    else:
-        # For other non-empty results, indicate success
-        console.print(f"Tool [cyan]{tool_name}[/cyan] completed successfully")
+    console.print(f"[cyan]{tool_name}[/cyan]: {message}")

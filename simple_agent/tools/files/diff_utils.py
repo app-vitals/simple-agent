@@ -7,7 +7,12 @@ from typing import Any
 
 from rich.syntax import Syntax
 
-from simple_agent.display import console, display_error, display_info, get_confirmation
+from simple_agent.display import (
+    console,
+    display_info,
+    display_warning,
+    get_confirmation,
+)
 from simple_agent.tools.utils import clean_path, format_tool_args
 
 
@@ -100,7 +105,7 @@ def get_file_diff_for_patch(file_path: str, old_content: str, new_content: str) 
         updated_content = current_file_content.replace(old_content, new_content)
         return create_git_diff_view(file_path, current_file_content, updated_content)
     except Exception as e:
-        display_error(f"Error creating diff for {clean_path(file_path)}", e)
+        display_warning(f"Error creating diff for {clean_path(file_path)}", e)
         return f"Error creating diff: {e}"
 
 

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from simple_agent.display import display_error, display_success, print_tool_call
+from simple_agent.display import display_success, display_warning, print_tool_call
 from simple_agent.tools.files.diff_utils import write_file_confirmation_handler
 from simple_agent.tools.registry import register
 from simple_agent.tools.utils import clean_path
@@ -25,7 +25,7 @@ def write_file(file_path: str, content: str) -> bool:
         display_success(f"File {clean_path(file_path)} written successfully")
         return True
     except Exception as e:
-        display_error(f"Error writing file: {clean_path(file_path)}", e)
+        display_warning(f"Error writing file: {clean_path(file_path)}", e)
         return False
 
 

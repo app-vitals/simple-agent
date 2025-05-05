@@ -7,7 +7,7 @@ from select import select
 from simple_agent.display import (
     display_command,
     display_command_output,
-    display_error,
+    display_warning,
     print_tool_call,
 )
 from simple_agent.tools.registry import register
@@ -78,7 +78,7 @@ def execute_command(command: str) -> tuple[str, str, int]:
         stderr_result = "".join(stderr_capture)
         return stdout_result, stderr_result, process.returncode
     except Exception as e:
-        display_error(f"Failed to execute command: {command}", e)
+        display_warning(f"Failed to execute command: {command}", e)
         return "", str(e), 1
 
 

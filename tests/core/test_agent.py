@@ -72,16 +72,16 @@ def test_process_input_keyboard_interrupt(agent: Agent, mocker: MockerFixture) -
     # Since the display module is imported at the module level, it's tricky to mock
     # Instead of mocking the imported function, we'll use our own test verification
     # to confirm the function executes the expected behavior
-    
+
     # Make _handle_ai_request raise KeyboardInterrupt when called
     agent._handle_ai_request = mocker.MagicMock(side_effect=KeyboardInterrupt())  # type: ignore
-    
+
     # Process a message (should catch the KeyboardInterrupt)
     agent._process_input("What is the weather today?")
-    
+
     # Verify _handle_ai_request was called
     agent._handle_ai_request.assert_called_once_with("What is the weather today?")  # type: ignore
-    
+
     # The test passes if we reach this point without raising an exception
 
 
@@ -259,7 +259,7 @@ def test_handle_ai_request_error(agent: Agent, mocker: MockerFixture) -> None:
     # Verify context was updated with user message
     assert {"role": "user", "content": "Hello"} in agent.context
 
-    # Can't verify display_error was called due to import mocking issues, 
+    # Can't verify display_error was called due to import mocking issues,
     # but we can verify no error is raised and the code handles the None response
 
 
@@ -330,7 +330,7 @@ def test_process_llm_response_ask(agent: Agent, mocker: MockerFixture) -> None:
 
     # Call the method
     agent._process_llm_response(json_content, MagicMock())
-    
+
     # Verify response was added to context
     assert agent.context[-1]["role"] == "assistant"
     assert agent.context[-1]["content"] == json_content
@@ -357,7 +357,7 @@ def test_process_llm_response_continue(agent: Agent, mocker: MockerFixture) -> N
     agent._handle_ai_request.assert_called_once_with(  # type: ignore
         "Please continue by I'll check the documentation next"
     )
-    
+
     # Verify response was added to context
     assert agent.context[-1]["role"] == "assistant"
     assert agent.context[-1]["content"] == json_content

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from simple_agent.display import (
-    display_error,
+    display_warning,
     print_tool_call,
     print_tool_result,
 )
@@ -27,17 +27,17 @@ def patch_file(file_path: str, old_content: str, new_content: str) -> bool:
     try:
         current_content = Path(file_path).read_text()
         if old_content not in current_content:
-            display_error(f"Old content not found in {file_path}")
+            display_warning(f"Old content not found in {file_path}")
             return False
 
         updated_content = current_content.replace(old_content, new_content)
         Path(file_path).write_text(updated_content)
 
         # Display success message
-        print_tool_result("patch_file", True)
+        print_tool_result("patch_file", f"Successfully patched file {file_path}")
         return True
     except Exception as e:
-        display_error(f"Error patching file {file_path}", e)
+        display_warning(f"Error patching file {file_path}", e)
         return False
 
 

@@ -116,7 +116,7 @@ class Agent:
             self._handle_ai_request(user_input)
         except KeyboardInterrupt:
             # Handle Ctrl+C gracefully
-            display_warning("\nInterrupted by user...")
+            display_warning("Interrupted by user...")
 
     def _handle_ai_request(self, message: str) -> None:
         """Process a request through the AI model and handle tools if needed.
