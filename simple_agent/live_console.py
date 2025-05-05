@@ -199,7 +199,8 @@ def update_live_display(new_content: str) -> None:
     """
     if live_display is None:
         # No live display available, fallback to console
-        console.print(new_content)
+        # Use highlight=False to preserve any ANSI color codes in the content
+        console.print(new_content, highlight=False)
         return
 
     current_content = live_display.renderable
@@ -243,3 +244,90 @@ def update_live_display(new_content: str) -> None:
     live_display.update(
         Panel("\n".join(display_lines), title="", border_style="blue", box=MINIMAL)
     )
+
+
+def live_confirmation(message: str, default: bool = True) -> bool:
+    """Get user confirmation within the live display.
+
+    Args:
+        message: The confirmation message to display
+        default: Default response if user just presses Enter
+
+    Returns:
+        True if confirmed, False if denied
+    """
+    if live_display is None:
+        # Fallback to standard input if live display isn't available
+        default_text = "Y/n" if default else "y/N"
+        response = input(f"Confirm {message} [{default_text}] ")
+        if not response:
+            return default
+        return response.lower() in ["y", "yes"]
+
+    # Create the confirmation message but don't add it to the live display yet
+    # We'll show it only at the input prompt at the bottom of the console
+    confirm_message = (
+        f"[bold yellow]Confirm[/bold yellow] {message} [bold yellow][Y/n][/bold yellow]"
+    )
+
+    # Temporarily stop the live display to get user input
+    live_display.stop()
+
+    try:
+        # Use a colored prompt for the confirmation
+        # This uses ANSI escape codes for color since we're outside of Rich's rendering
+        default_text = "Y/n" if default else "y/N"
+        yellow_text = "\033[93m"  # ANSI bright yellow
+        cyan_text = "\033[96m"  # ANSI bright cyan
+        reset_text = "\033[0m"  # ANSI reset
+
+        # Convert any Rich markup to ANSI colors
+        formatted_message = message
+
+        # Common color conversions
+        formatted_message = formatted_message.replace("[cyan]", cyan_text)
+        formatted_message = formatted_message.replace("[/cyan]", reset_text)
+        formatted_message = formatted_message.replace("[blue]", "\033[94m")
+        formatted_message = formatted_message.replace("[/blue]", reset_text)
+        formatted_message = formatted_message.replace("[green]", "\033[92m")
+        formatted_message = formatted_message.replace("[/green]", reset_text)
+        formatted_message = formatted_message.replace("[red]", "\033[91m")
+        formatted_message = formatted_message.replace("[/red]", reset_text)
+        formatted_message = formatted_message.replace("[yellow]", "\033[93m")
+        formatted_message = formatted_message.replace("[/yellow]", reset_text)
+
+        # Style conversions
+        formatted_message = formatted_message.replace("[bold]", "\033[1m")
+        formatted_message = formatted_message.replace("[/bold]", reset_text)
+        formatted_message = formatted_message.replace("[dim]", "\033[2m")
+        formatted_message = formatted_message.replace("[/dim]", reset_text)
+        formatted_message = formatted_message.replace("[italic]", "\033[3m")
+        formatted_message = formatted_message.replace("[/italic]", reset_text)
+
+        response = input(
+            f"{yellow_text}Confirm{reset_text} {formatted_message} {yellow_text}[{default_text}]{reset_text} "
+        )
+
+        # Process the response
+        if not response:
+            result = default
+        else:
+            result = response.lower() in ["y", "yes"]
+
+        # Display the user's choice in the live context
+        choice_text = "Yes" if result else "No"
+        confirmation_result = (
+            f"[bold yellow]Confirm[/bold yellow] {message} [bold]→ {choice_text}[/bold]"
+        )
+
+        # Resume the live display and update it with the confirmation result
+        live_display.start()
+        update_live_display(confirmation_result)
+
+        return result
+    except Exception as e:
+        # Make sure we restart the live display even if there's an error
+        if live_display and not live_display.is_active:
+            live_display.start()
+        # Re-raise the exception
+        raise e

@@ -3,12 +3,11 @@
 from pathlib import Path
 from typing import Any
 
-from prompt_toolkit import prompt
-from prompt_toolkit.formatted_text import HTML
 from rich.traceback import Traceback
 
 from simple_agent.live_console import (
     console,
+    live_confirmation,
     update_live_display,
 )
 
@@ -44,25 +43,58 @@ def format_tool_args(*args: object, **kwargs: object) -> str:
     formatted_args = []
     for arg in args:
         if isinstance(arg, str):
+            # Handle strings - remove CWD prefixes from paths
             formatted_args.append(f"'{clean_path(arg)}'")
         elif isinstance(arg, list | tuple) and all(isinstance(x, str) for x in arg):
             # For lists/tuples of strings, clean each path and format as comma-separated
-            formatted_items = [f"'{clean_path(x)}'" for x in arg]
-            formatted_args.append(", ".join(formatted_items))
-        else:
+            if len(arg) > 3:
+                # For long lists, show the first 2 items and a count
+                formatted_items = [f"'{clean_path(x)}'" for x in list(arg)[:2]]
+                formatted_args.append(
+                    f"{', '.join(formatted_items)}, ... ({len(arg)} items)"
+                )
+            else:
+                # For short lists, show all items
+                formatted_items = [f"'{clean_path(x)}'" for x in arg]
+                formatted_args.append(", ".join(formatted_items))
+        elif isinstance(arg, (int, float, bool)):
+            # Format simple primitive types
             formatted_args.append(str(arg))
+        else:
+            # For other types, provide a simpler representation
+            formatted_args.append(f"<{type(arg).__name__}>")
 
     # Format keyword arguments
     formatted_kwargs = []
     for key, value in kwargs.items():
         if isinstance(value, str):
-            formatted_kwargs.append(f"{key}='{clean_path(value)}'")
+            # Handle string values - clean paths
+            if len(value) > 50:
+                # Truncate long strings
+                formatted_kwargs.append(f"{key}='{clean_path(value[:47])}...'")
+            else:
+                formatted_kwargs.append(f"{key}='{clean_path(value)}'")
         elif isinstance(value, list | tuple) and all(isinstance(x, str) for x in value):
-            # For other lists/tuples, format as a list
-            formatted_items = [f"'{clean_path(x)}'" for x in value]
-            formatted_kwargs.append(f"{key}=[{', '.join(formatted_items)}]")
-        else:
+            # For lists/tuples of strings, clean each path
+            if len(value) > 3:
+                # For long lists, show the first 2 items and a count
+                formatted_items = [f"'{clean_path(x)}'" for x in list(value)[:2]]
+                formatted_kwargs.append(
+                    f"{key}=[{', '.join(formatted_items)}, ... ({len(value)} items)]"
+                )
+            else:
+                # For short lists, show all items
+                formatted_items = [f"'{clean_path(x)}'" for x in value]
+                formatted_kwargs.append(f"{key}=[{', '.join(formatted_items)}]")
+        elif isinstance(value, (int, float, bool)):
+            # Format simple primitive types
             formatted_kwargs.append(f"{key}={value}")
+        elif value is None:
+            # Handle None values
+            formatted_kwargs.append(f"{key}=None")
+        else:
+            # For other types, provide a simpler representation
+            formatted_kwargs.append(f"{key}=<{type(value).__name__}>")
 
     # Combine positional and keyword arguments
     all_args = []
@@ -177,16 +209,8 @@ def get_confirmation(message: str, default: bool = True) -> bool:
     Returns:
         True if confirmed, False otherwise
     """
-    default_text = "[Y/n]" if default else "[y/N]"
-    result = prompt(
-        HTML(
-            f"<ansiyellow>Confirm</ansiyellow> {message} <ansiyellow>{default_text}</ansiyellow> "
-        )
-    )
-
-    if not result:
-        return default
-    return result.lower() in ["y", "yes"]
+    # Use the live confirmation system which handles both live and standard modes
+    return live_confirmation(message, default)
 
 
 def display_exit(reason: str) -> None:

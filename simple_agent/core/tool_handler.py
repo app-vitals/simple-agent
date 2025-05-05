@@ -92,7 +92,7 @@ class ToolHandler:
                             # Use the standardized confirmation function from display module
                             args_string = format_tool_args(**arguments)
                             confirmed = get_confirmation(
-                                f"<ansicyan>{tool_name}</ansicyan>({args_string})?"
+                                f"[cyan]{tool_name}[/cyan]({args_string})?"
                             )
 
                     if not confirmed:

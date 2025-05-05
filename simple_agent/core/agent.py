@@ -37,8 +37,8 @@ For efficiency, always batch your file reads by using read_files with multiple f
 IMPORTANT: You MUST format all your responses as JSON following this schema:
 {
   "message": "Your main message and analysis for the user",
-  "status": "COMPLETE|CONTINUE|ASK",
-  "next_action": "If status is CONTINUE, describe the next planned action. If status is ASK, formulate a question for the user."
+  "status": "COMPLETE|ASK",
+  "question": "If status is ASK, formulate a question for the user."
 }
 
 Status values explanation:
@@ -50,21 +50,14 @@ Example for a complete task:
 {
   "message": "I've analyzed the README.md file and it shows this is a Python CLI project that implements a simple agent framework.",
   "status": "COMPLETE",
-  "next_action": null
-}
-
-Example for an action you can continue with:
-{
-  "message": "I've listed the project files. This appears to be a Python CLI application.",
-  "status": "CONTINUE",
-  "next_action": "Read the README.md, main.py, and requirements.txt files to understand the project structure and dependencies."
+  "question": null
 }
 
 Example for when you need user input:
 {
   "message": "I can see several Python files in the project.",
   "status": "ASK",
-  "next_action": "I could analyze the main code files together (main.py, utils.py, config.py) or focus on the tests first. Which would you prefer?"
+  "question": "I could analyze the main code files together (main.py, utils.py, config.py) or focus on the tests first. Which would you prefer?"
 }
 
 When helping users:
@@ -236,20 +229,8 @@ class Agent:
             display_response(
                 structured_response.message,
                 structured_response.status.value,
-                structured_response.next_action,
+                structured_response.question,
             )
-
-            # Continue with the next action if needed
-            if (
-                structured_response.status == AgentStatus.CONTINUE
-                and structured_response.next_action
-            ):
-                continuation_prompt = (
-                    f"Please continue by {structured_response.next_action}"
-                )
-                self._handle_ai_request(continuation_prompt)
-
-            # Note: ASK status is already handled by display_response
 
             # Keep the raw JSON response in the context for the LLM
             self.context.append({"role": "assistant", "content": content})
