@@ -67,6 +67,24 @@ def test_process_input_ai_request(agent: Agent, mocker: MockerFixture) -> None:
     agent._handle_ai_request.assert_called_once_with("What is the weather today?")  # type: ignore
 
 
+def test_process_input_keyboard_interrupt(agent: Agent, mocker: MockerFixture) -> None:
+    """Test the _process_input method handling KeyboardInterrupt."""
+    # Mock dependencies
+    agent.console = mocker.MagicMock()  # type: ignore
+
+    # Make _handle_ai_request raise KeyboardInterrupt when called
+    agent._handle_ai_request = mocker.MagicMock(side_effect=KeyboardInterrupt())  # type: ignore
+
+    # Process a message (should catch the KeyboardInterrupt)
+    agent._process_input("What is the weather today?")
+
+    # Verify _handle_ai_request was called
+    agent._handle_ai_request.assert_called_once_with("What is the weather today?")  # type: ignore
+
+    # Verify interrupt message was printed
+    agent.console.print.assert_called_once_with("\n[bold yellow]Interrupted by user...[/bold yellow]")  # type: ignore
+
+
 def test_handle_ai_request(agent: Agent, mocker: MockerFixture) -> None:
     """Test the _handle_ai_request method."""
     # Mock dependencies
@@ -414,6 +432,32 @@ def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -
 
     # Verify _process_llm_response was never called since we never got a complete response
     agent._process_llm_response.assert_not_called()  # type: ignore
+
+
+def test_handle_ai_request_with_keyboard_interrupt_propagation(
+    agent: Agent, mocker: MockerFixture
+) -> None:
+    """Test that KeyboardInterrupt from _handle_ai_request propagates to _process_input."""
+    # Set up mocks
+    agent.console = mocker.MagicMock()  # type: ignore
+
+    # Create a mock cli
+    mock_cli = mocker.MagicMock()
+    # Mock the CLIMode.NORMAL value
+    type(mock_cli).mode = mocker.PropertyMock(return_value=CLIMode.NORMAL)
+    agent.cli = mock_cli
+
+    # Mock _handle_ai_request to raise KeyboardInterrupt directly
+    agent._handle_ai_request = mocker.MagicMock(side_effect=KeyboardInterrupt())  # type: ignore
+
+    # Process a message (should catch the KeyboardInterrupt)
+    agent._process_input("Hello")
+
+    # Verify _handle_ai_request was called
+    agent._handle_ai_request.assert_called_once_with("Hello")  # type: ignore
+
+    # Verify interrupt message was printed
+    agent.console.print.assert_called_once_with("\n[bold yellow]Interrupted by user...[/bold yellow]")  # type: ignore
 
 
 def test_process_llm_response_invalid_json(agent: Agent, mocker: MockerFixture) -> None:

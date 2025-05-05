@@ -108,7 +108,11 @@ class Agent:
         Args:
             user_input: The user's input text
         """
-        self._handle_ai_request(user_input)
+        try:
+            self._handle_ai_request(user_input)
+        except KeyboardInterrupt:
+            # Handle Ctrl+C gracefully
+            self.console.print("\n[bold yellow]Interrupted by user...[/bold yellow]")
 
     def _handle_ai_request(self, message: str) -> None:
         """Process a request through the AI model and handle tools if needed.

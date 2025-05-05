@@ -40,18 +40,16 @@ def test_file_path_completer(mocker: MockerFixture) -> None:
 
     # Keep track of what the completer passes to the path_completer
     sub_documents = []
-    
+
     # Create a custom mock that captures the document passed
-    def mock_get_completions(document, _):
+    def mock_get_completions(document: MagicMock, _: MagicMock) -> list[MagicMock]:
         # Save the document that was passed to the path_completer
         sub_documents.append(document.text_before_cursor)
         return [mock_completion]
-    
+
     # Apply the mock
     mocker.patch.object(
-        completer.path_completer, 
-        "get_completions", 
-        side_effect=mock_get_completions
+        completer.path_completer, "get_completions", side_effect=mock_get_completions
     )
 
     # Test with path starting with ./
@@ -83,14 +81,14 @@ def test_file_path_completer(mocker: MockerFixture) -> None:
     assert len(completions) > 0  # Should yield completions for ./test
     # The document passed to path_completer should be just "./test"
     assert sub_documents[-1] == "./test"
-    
+
     # Test with command and path pattern
     doc.text_before_cursor = "ls /usr/lo"
     completions = list(completer.get_completions(doc, MagicMock()))
     assert len(completions) > 0
     # The document passed to path_completer should be just "/usr/lo"
     assert sub_documents[-1] == "/usr/lo"
-    
+
     # Test with multiple spaces
     doc.text_before_cursor = "command with   /etc/ho"
     completions = list(completer.get_completions(doc, MagicMock()))
