@@ -67,18 +67,3 @@ def format_tool_args(*args: object, **kwargs: object) -> str:
         all_args.extend(formatted_kwargs)
 
     return ", ".join(all_args)
-
-
-def print_tool_call(tool_name: str, *args: object, **kwargs: object) -> None:
-    """Print a tool call with cleaned path arguments.
-
-    Args:
-        tool_name: Name of the tool being called
-        *args: Positional arguments to the tool
-        **kwargs: Keyword arguments to the tool
-    """
-    from rich.console import Console
-
-    console = Console()
-    formatted_args = format_tool_args(*args, **kwargs)
-    console.print(f"{tool_name}({formatted_args})")

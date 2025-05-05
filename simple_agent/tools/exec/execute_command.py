@@ -4,8 +4,13 @@ import subprocess
 import sys
 from select import select
 
+from simple_agent.display import (
+    display_command,
+    display_command_output,
+    display_error,
+    print_tool_call,
+)
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import print_tool_call
 
 
 def execute_command(command: str) -> tuple[str, str, int]:
@@ -18,7 +23,8 @@ def execute_command(command: str) -> tuple[str, str, int]:
         Tuple containing (stdout, stderr, return_code)
     """
 
-    print_tool_call("execute_command", command)
+    print_tool_call("execute_command", command=command)
+    display_command(command)
 
     # For capturing the complete output to return
     stdout_capture = []
@@ -43,8 +49,7 @@ def execute_command(command: str) -> tuple[str, str, int]:
             if process.stdout in rlist and process.stdout is not None:
                 output = process.stdout.readline()
                 if output:
-                    sys.stdout.write(output)
-                    sys.stdout.flush()
+                    display_command_output(output.rstrip())
                     stdout_capture.append(output)
 
             if process.stderr in rlist and process.stderr is not None:
@@ -59,8 +64,7 @@ def execute_command(command: str) -> tuple[str, str, int]:
                 # Read any remaining output
                 if process.stdout is not None:
                     for output in process.stdout:
-                        sys.stdout.write(output)
-                        sys.stdout.flush()
+                        display_command_output(output.rstrip())
                         stdout_capture.append(output)
 
                 if process.stderr is not None:
@@ -74,10 +78,8 @@ def execute_command(command: str) -> tuple[str, str, int]:
         stderr_result = "".join(stderr_capture)
         return stdout_result, stderr_result, process.returncode
     except Exception as e:
-        error_msg = str(e)
-        sys.stderr.write(f"ERROR: {error_msg}\n")
-        sys.stderr.flush()
-        return "", error_msg, 1
+        display_error(f"Failed to execute command: {command}", e)
+        return "", str(e), 1
 
 
 # Register this tool with the registry

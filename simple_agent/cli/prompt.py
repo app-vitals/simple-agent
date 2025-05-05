@@ -5,59 +5,48 @@ import subprocess
 from collections.abc import Callable
 from enum import Enum
 
-from prompt_toolkit import PromptSession, print_formatted_text
+from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.formatted_text import ANSI, HTML
+from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.shortcuts import clear
 from prompt_toolkit.styles import Style
-from rich.console import Console
 
 from simple_agent.cli.completion import Completer
+from simple_agent.display import (
+    console,
+    display_command,
+    display_command_output,
+    display_error,
+    display_info,
+    display_warning,
+)
 
 
 class CLIMode(Enum):
-    """Enumeration for CLI modes."""
+    """CLI interaction modes."""
 
     NORMAL = "normal"
     SHELL = "shell"
 
 
+# Define prompt components
 NORMAL_PROMPT = HTML("<prompt.arrow>></prompt.arrow> ")
 SHELL_PROMPT = HTML("<prompt.arrow>!</prompt.arrow> ")
 
-# Help text for the CLI
-HELP_TEXT = """
-[bold]Simple Agent[/bold] - An AI assistant that can help with tasks
-
-Just type your questions or requests naturally.
-The agent can:
-• Answer questions
-• Run commands (when you ask it to)
-• Read and write files (when you ask it to)
-
-[bold]Commands:[/bold]
-• [green]/help[/green]:  Show this help message
-• [green]/clear[/green]: Clear the terminal screen
-• [green]/exit[/green]:  Exit the agent
-• [green]![/green]:      Run a shell command
-
-[bold]Input features:[/bold]
-• End a line with [green]\\ [/green]for aligned multi-line input
-• Use Tab key for command auto-completion
-
-[bold]Response types:[/bold]
-• [blue]Next action[/blue]: The agent knows what to do next and will continue automatically
-• [yellow]Question[/yellow]: The agent needs more information from you
-• Normal response: The task is complete
-"""
-
 
 def setup_keybindings(cli: "CLI") -> KeyBindings:
-    """Set up key bindings for the prompt session."""
+    """Set up key bindings for the prompt session.
+
+    Args:
+        cli: The CLI instance to bind keys for
+
+    Returns:
+        KeyBindings instance with configured key bindings
+    """
     kb = KeyBindings()
 
     @kb.add(Keys.ControlC)
@@ -126,8 +115,35 @@ def setup_keybindings(cli: "CLI") -> KeyBindings:
     return kb
 
 
+# Help text for the CLI
+HELP_TEXT = """
+[bold]Simple Agent[/bold] - An AI assistant that can help with tasks
+
+Just type your questions or requests naturally.
+The agent can:
+• Answer questions
+• Run commands (when you ask it to)
+• Read and write files (when you ask it to)
+
+[bold]Commands:[/bold]
+• [green]/help[/green]:  Show this help message
+• [green]/clear[/green]: Clear the terminal screen
+• [green]/exit[/green]:  Exit the agent
+• [green]![/green]:      Run a shell command
+
+[bold]Input features:[/bold]
+• End a line with [green]\\ [/green]for aligned multi-line input
+• Use Tab key for command auto-completion
+
+[bold]Response types:[/bold]
+• [blue]Next action[/blue]: The agent knows what to do next and will continue automatically
+• [yellow]Question[/yellow]: The agent needs more information from you
+• Normal response: The task is complete
+"""
+
+
 class CLI:
-    """Command-line interface for Simple Agent."""
+    """Interactive CLI for Simple Agent."""
 
     def __init__(
         self,
@@ -138,7 +154,6 @@ class CLI:
         Args:
             process_input_callback: Callback for processing user input
         """
-        self.console = Console()
         self.process_input = process_input_callback
         self.mode = CLIMode.NORMAL
 
@@ -191,9 +206,17 @@ class CLI:
 
     def show_help(self) -> None:
         """Display help information."""
-        self.console.print(HELP_TEXT)
+        console.print(HELP_TEXT)
 
     def set_mode(self, mode: CLIMode) -> bool:
+        """Set the current interaction mode.
+
+        Args:
+            mode: The mode to switch to
+
+        Returns:
+            True if successful, False otherwise
+        """
         if self.mode == mode:
             return False
         self.mode = mode
@@ -244,14 +267,15 @@ class CLI:
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃          🤖 Simple Agent           ┃
 ┃                                    ┃
-┃ \033[32m/help\033[0m      \033[90m for available commands \033[1;37m┃
-┃ \033[32m/clear\033[0m     \033[90m to clear the screen    \033[1;37m┃
-┃ \033[32m/exit\033[0m      \033[90m to quit                \033[1;37m┃
-┃ \033[32m!\033[0m          \033[90m to run a shell command \033[1;37m┃
-┃ \033[32m\\ + Enter\033[0m  \033[90m to create a newline    \033[1;37m┃
+┃ /help      for available commands  ┃
+┃ /clear     to clear the screen     ┃
+┃ /exit      to quit                 ┃
+┃ !          to run a shell command  ┃
+┃ \\ + Enter  to create a newline     ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
-        print_formatted_text(ANSI(f"\033[1;37m{welcome_message}\033[0m"))
+        # Using direct console.print since we want custom formatting for the welcome box
+        console.print(f"[bold white]{welcome_message}[/bold white]")
 
         while True:
             try:
@@ -267,9 +291,7 @@ class CLI:
 
                 # Check for slash commands
                 if user_input.lower() == "/exit":
-                    print_formatted_text(
-                        ANSI("\033[33mGoodbye! Exiting Simple Agent.\033[0m")
-                    )
+                    display_info("Goodbye! Exiting Simple Agent.")
                     break
                 elif user_input.lower() == "/help":
                     self.show_help()
@@ -277,18 +299,21 @@ class CLI:
                 elif user_input.lower() == "/clear":
                     clear()
                     continue
+                elif user_input.startswith("/"):
+                    # Handle unknown slash commands
+                    display_warning(f"Unknown command: {user_input}")
+                    continue
 
                 if self.mode == CLIMode.SHELL:
-
                     # Print the command being executed
-                    print_formatted_text(ANSI(f"\033[36m$ {user_input}\033[0m"))
+                    display_command(user_input)
 
                     # Execute the command
                     output = self.execute_command(user_input)
 
                     # Display the output
                     if output:
-                        print_formatted_text(ANSI(f"{output}"))
+                        display_command_output(output)
 
                     # Format combined input for the agent context
                     context_message = f"Command:\n```bash\n$ {user_input}\n```\nOutput:\n```\n{output}\n```"
@@ -303,40 +328,15 @@ class CLI:
 
             except KeyboardInterrupt:
                 # If Ctrl+C was pressed with empty buffer, we'll get here
-                print_formatted_text(ANSI("\n\033[33mInterrupted. Exiting.\033[0m"))
+                display_warning("\nInterrupted. Exiting.")
                 break
             except EOFError:
-                print_formatted_text(ANSI("\n\033[33mReceived EOF. Exiting.\033[0m"))
+                display_warning("\nReceived EOF. Exiting.")
                 break
+            except Exception as e:
+                display_error("Unexpected error", e)
 
-
-def create_rich_formatted_response(response_json: dict) -> str:
-    """Create a rich formatted response from JSON.
-
-    Args:
-        response_json: The parsed JSON response
-
-    Returns:
-        Formatted response string
-    """
-    formatted_output = []
-
-    # Add the main message
-    if "message" in response_json:
-        formatted_output.append(response_json["message"])
-
-    # Add status-specific formatting
-    if "status" in response_json:
-        status = response_json["status"]
-        next_action = response_json.get("next_action")
-
-        if status == "CONTINUE" and next_action:
-            formatted_output.append(
-                f"\n[bold blue]Next action:[/bold blue] {next_action}"
-            )
-        elif status == "ASK" and next_action:
-            formatted_output.append(
-                f"\n[bold yellow]Question:[/bold yellow] {next_action}"
-            )
-
-    return "\n".join(formatted_output)
+    # Keep the run method as an alias for backwards compatibility
+    def run(self) -> None:
+        """Run the interactive prompt loop."""
+        return self.run_interactive_loop()

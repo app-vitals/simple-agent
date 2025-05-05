@@ -29,8 +29,11 @@ def test_glob_files(mocker: MockerFixture) -> None:
         with open(file_path, "w") as f:
             f.write(f"Content of {os.path.basename(file_path)}")
 
-    # Mock console.print to avoid output in tests
-    mocker.patch("simple_agent.tools.files.glob_files.Console.print")
+    # Mock display functions to avoid output in tests
+    mocker.patch("simple_agent.tools.files.glob_files.print_tool_call")
+    mocker.patch("simple_agent.tools.files.glob_files.print_tool_result")
+    mocker.patch("simple_agent.tools.files.glob_files.display_error")
+    mocker.patch("simple_agent.tools.files.glob_files.display_info")
 
     try:
         # Test basic glob matching

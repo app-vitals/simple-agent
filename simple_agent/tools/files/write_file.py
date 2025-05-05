@@ -2,11 +2,10 @@
 
 from pathlib import Path
 
-from rich.console import Console
-
+from simple_agent.display import display_error, display_success, print_tool_call
 from simple_agent.tools.files.diff_utils import write_file_confirmation_handler
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import print_tool_call
+from simple_agent.tools.utils import clean_path
 
 
 def write_file(file_path: str, content: str) -> bool:
@@ -19,14 +18,14 @@ def write_file(file_path: str, content: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    console = Console()
     print_tool_call("write_file", file_path=file_path)
 
     try:
         Path(file_path).write_text(content)
+        display_success(f"File {clean_path(file_path)} written successfully")
         return True
     except Exception as e:
-        console.print(f"[bold red]Error writing file:[/bold red] {e}")
+        display_error(f"Error writing file: {clean_path(file_path)}", e)
         return False
 
 

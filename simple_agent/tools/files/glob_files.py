@@ -4,10 +4,14 @@ import glob
 import os
 from pathlib import Path
 
-from rich.console import Console
-
+from simple_agent.display import (
+    display_error,
+    display_info,
+    print_tool_call,
+    print_tool_result,
+)
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import print_tool_call
+from simple_agent.tools.utils import clean_path
 
 
 def glob_files(
@@ -27,24 +31,34 @@ def glob_files(
     Returns:
         List of file paths matching the pattern
     """
-    console = Console()
     # Print the tool call with cleaned paths
     if base_dir == ".":
-        print_tool_call("glob_files", pattern)
+        print_tool_call(
+            "glob_files",
+            pattern=pattern,
+            recursive=recursive,
+            include_hidden=include_hidden,
+        )
     else:
-        print_tool_call("glob_files", pattern, base_dir=base_dir)
+        print_tool_call(
+            "glob_files",
+            pattern=pattern,
+            base_dir=base_dir,
+            recursive=recursive,
+            include_hidden=include_hidden,
+        )
 
     try:
         # Convert base_dir to absolute path and resolve any symlinks
         base_path = Path(base_dir).expanduser().resolve()
         if not base_path.exists():
-            console.print(
-                f"[bold red]Error:[/bold red] Base directory does not exist: {base_path}"
+            display_error(
+                f"Base directory does not exist: {clean_path(str(base_path))}"
             )
             return []
 
         if not base_path.is_dir():
-            console.print(f"[bold red]Error:[/bold red] Not a directory: {base_path}")
+            display_error(f"Not a directory: {clean_path(str(base_path))}")
             return []
 
         # If pattern contains "**", set recursive to True automatically
@@ -95,10 +109,19 @@ def glob_files(
         # Sort files by modification time (newest first)
         result.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 
+        # Display results summary
+        if result:
+            display_info(f"Found {len(result)} file(s) matching pattern '{pattern}'")
+        else:
+            display_info(f"No files found matching pattern '{pattern}'")
+
+        # Display tool result
+        print_tool_result("glob_files", result)
+
         return result
 
     except Exception as e:
-        console.print(f"[bold red]Error during glob search:[/bold red] {e}")
+        display_error(f"Error during glob search with pattern '{pattern}'", e)
         return []
 
 

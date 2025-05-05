@@ -4,11 +4,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-from prompt_toolkit import prompt
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.styles import Style
-from rich.console import Console
-
+from simple_agent.display import display_error, display_info, get_confirmation
 from simple_agent.tools import (
     execute_tool_call,
     get_confirmation_handler,
@@ -27,7 +23,6 @@ class ToolHandler:
         Args:
             input_func: Optional function to use for getting user input for confirmations
         """
-        self.console = Console()
         self.input_func = input_func or input
 
     def process_tool_calls(
@@ -83,38 +78,24 @@ class ToolHandler:
                             confirmation = self.input_func(
                                 f"Confirm {tool_name}({args_string})? [Y/n] "
                             )
+
+                            # Empty input (just Enter) defaults to yes
+                            if confirmation == "":
+                                confirmation = "y"
+
+                            confirmed = confirmation.lower() in ["y", "yes"]
                         else:
-                            # Create a nice prompt_toolkit confirmation prompt
-                            confirmation_style = Style.from_dict(
-                                {
-                                    "tool": "ansibrightyellow bold",
-                                    "prompt": "ansiyellow",
-                                    "highlight": "ansibrightgreen",
-                                }
-                            )
-
-                            # HTML-formatted prompt that highlights the tool name and includes arguments
-                            # Use format_tool_args utility to format the arguments
+                            # Use the standardized confirmation function from display module
                             args_string = format_tool_args(**arguments)
-                            confirm_prompt = HTML(
-                                f"<prompt>Confirm </prompt>"
-                                f"<tool>{tool_name}({args_string})</tool>"
-                                f"<prompt>? </prompt><highlight>[Y/n]</highlight> "
+                            confirmed = get_confirmation(
+                                f"Confirm {tool_name}({args_string})?"
                             )
-
-                            # Get confirmation using prompt_toolkit
-                            confirmation = prompt(
-                                confirm_prompt, style=confirmation_style
-                            )
-
-                        # Empty input (just Enter) defaults to yes
-                        if confirmation == "":
-                            confirmation = "y"
-
-                        confirmed = confirmation.lower() in ["y", "yes"]
 
                     if not confirmed:
                         # User rejected the tool call
+                        display_info(
+                            f"The user denied permission to execute {tool_name}"
+                        )
                         tool_response = {
                             "role": "tool",
                             "tool_call_id": tool_id,
@@ -136,7 +117,7 @@ class ToolHandler:
                 }
                 updated_messages.append(tool_response)
             except json.JSONDecodeError:
-                self.console.print("[bold red]Error:[/bold red] Invalid tool arguments")
+                display_error("Invalid tool arguments")
                 tool_response = {
                     "role": "tool",
                     "tool_call_id": tool_id,

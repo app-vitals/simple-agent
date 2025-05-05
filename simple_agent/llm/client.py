@@ -3,9 +3,9 @@
 from typing import Any
 
 import litellm
-from rich.console import Console
 
 from simple_agent.config import config
+from simple_agent.display import display_error
 
 
 class LLMClient:
@@ -17,7 +17,6 @@ class LLMClient:
         Args:
             api_key: Optional API key, if not provided will look for an environment variable
         """
-        self.console = Console()
         self.api_key = api_key or config.llm.api_key
 
         # Configure LiteLLM
@@ -40,7 +39,7 @@ class LLMClient:
             The raw API response object, or None if an error occurs
         """
         if not self.api_key:
-            self.console.print("[bold red]Error:[/bold red] No API key provided")
+            display_error("No API key provided")
             return None
 
         try:
@@ -63,7 +62,7 @@ class LLMClient:
             response = litellm.completion(**params)
             return response
         except Exception as e:
-            self.console.print(f"[bold red]API Error:[/bold red] {e}")
+            display_error(f"API Error: {e}")
             return None
 
     def get_message_content(self, response: Any) -> tuple[str | None, list | None]:

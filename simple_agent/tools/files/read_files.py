@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from rich.console import Console
-
+from simple_agent.display import display_error, print_tool_call
 from simple_agent.tools.registry import register
+from simple_agent.tools.utils import clean_path
 
 
 def read_files(file_paths: list[str]) -> dict[str, str | None]:
@@ -16,35 +16,20 @@ def read_files(file_paths: list[str]) -> dict[str, str | None]:
     Returns:
         Dictionary mapping each file path to its contents or None if an error occurred
     """
-    console = Console()
     results: dict[str, str | None] = {}
 
-    # For read_files, we want a special format with just filenames in a list
-    cwd = str(Path.cwd())
-    clean_paths = []
-
-    for path in file_paths:
-        if path.startswith(cwd):
-            # If path starts with CWD, remove it to get a relative path
-            rel_path = path[len(cwd) :].lstrip("/") or path.split("/")[-1]
-            clean_paths.append(rel_path)
-        else:
-            # Otherwise use the basename
-            clean_paths.append(path.split("/")[-1] if "/" in path else path)
-
-    # Print formatted output
-    if len(clean_paths) == 1:
-        console.print(f"read_files({clean_paths[0]})")
+    # Format file paths for display
+    if len(file_paths) == 1:
+        print_tool_call("read_files", file_path=file_paths[0])
     else:
-        paths_str = ", ".join(clean_paths)
-        console.print(f"read_files({paths_str})")
+        print_tool_call("read_files", file_paths=file_paths)
 
     # Read each file
     for path in file_paths:
         try:
             results[path] = Path(path).read_text()
         except Exception as e:
-            console.print(f"[bold red]Error reading file:[/bold red] {e}")
+            display_error(f"Error reading file: {clean_path(path)}", e)
             results[path] = None
 
     return results

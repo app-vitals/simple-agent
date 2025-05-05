@@ -10,10 +10,10 @@ from pytest_mock import MockerFixture
 from simple_agent.cli.prompt import (
     CLI,
     CLIMode,
-    create_rich_formatted_response,
     setup_keybindings,
 )
 from simple_agent.core.schema import AgentStatus
+from simple_agent.display import display_response
 
 
 @pytest.fixture
@@ -26,10 +26,10 @@ def cli_instance() -> CLI:
 def test_cli_init(cli_instance: CLI) -> None:
     """Test CLI initialization."""
     # Verify attributes are set
-    assert hasattr(cli_instance, "console")
     assert hasattr(cli_instance, "process_input")
     assert hasattr(cli_instance, "style")
     assert hasattr(cli_instance, "session")
+    # Note: console is now imported from display module, not an attribute of CLI
 
 
 def test_cli_init_history_fallback(mocker: MockerFixture) -> None:
@@ -45,17 +45,16 @@ def test_cli_init_history_fallback(mocker: MockerFixture) -> None:
     cli = CLI(process_input_callback=mock_process_input)
 
     # Verify attributes are still set
-    assert hasattr(cli, "console")
     assert hasattr(cli, "process_input")
     assert hasattr(cli, "style")
     assert hasattr(cli, "session")
+    # Note: console is now imported from display module, not an attribute of CLI
 
 
 def test_show_help(cli_instance: CLI, mocker: MockerFixture) -> None:
     """Test the show_help method."""
-    # Mock console.print
-    mock_print = mocker.MagicMock()
-    cli_instance.console.print = mock_print  # type: ignore
+    # Mock console.print from display module
+    mock_print = mocker.patch("simple_agent.display.console.print")
 
     # Call show_help
     cli_instance.show_help()
@@ -66,8 +65,8 @@ def test_show_help(cli_instance: CLI, mocker: MockerFixture) -> None:
 
 def test_run_interactive_loop(cli_instance: CLI, mocker: MockerFixture) -> None:
     """Test the run_interactive_loop method."""
-    # Mock print_formatted_text
-    mocker.patch("simple_agent.cli.prompt.print_formatted_text")
+    # Mock console.print from display module instead of print_formatted_text
+    mocker.patch("simple_agent.display.console.print")
 
     # Mock session.prompt to return different values before raising EOFError to exit the loop
     # Test empty input, /help, /clear, normal input, and /exit
@@ -103,8 +102,8 @@ def test_run_interactive_loop_keyboard_interrupt(
     cli_instance: CLI, mocker: MockerFixture
 ) -> None:
     """Test handling of KeyboardInterrupt in run_interactive_loop."""
-    # Mock print_formatted_text
-    mock_print = mocker.patch("simple_agent.cli.prompt.print_formatted_text")
+    # Mock console.print
+    mock_print = mocker.patch("simple_agent.display.console.print")
 
     # Mock session.prompt to raise KeyboardInterrupt
     mock_session_prompt = MagicMock(side_effect=KeyboardInterrupt())
@@ -131,8 +130,8 @@ def test_integration_with_agent(mocker: MockerFixture) -> None:
     mock_prompt = mocker.MagicMock(side_effect=["test command", "/exit"])
     cli.session.prompt = mock_prompt  # type: ignore
 
-    # Mock print_formatted_text to avoid console output
-    mocker.patch("simple_agent.cli.prompt.print_formatted_text")
+    # Mock console.print to avoid console output
+    mocker.patch("simple_agent.display.console.print")
 
     # Run the interactive loop
     cli.run_interactive_loop()
@@ -409,8 +408,8 @@ def test_enter_handler(cli_instance: CLI, mocker: MockerFixture) -> None:
 
 def test_run_interactive_loop_eof(cli_instance: CLI, mocker: MockerFixture) -> None:
     """Test handling of EOFError in run_interactive_loop."""
-    # Mock print_formatted_text
-    mock_print = mocker.patch("simple_agent.cli.prompt.print_formatted_text")
+    # Mock console.print
+    mock_print = mocker.patch("simple_agent.display.console.print")
 
     # Mock session.prompt to raise EOFError
     mock_session_prompt = MagicMock(side_effect=EOFError())
@@ -509,8 +508,8 @@ def test_shell_mode_in_interactive_loop(
     cli_instance: CLI, mocker: MockerFixture
 ) -> None:
     """Test shell command handling in interactive mode."""
-    # Mock print_formatted_text to avoid console output
-    mocker.patch("simple_agent.cli.prompt.print_formatted_text")
+    # Mock console.print to avoid console output
+    mocker.patch("simple_agent.display.console.print")
 
     # Mock set_mode method to track calls and avoid real mode switching
     # Use mocker.patch.object with wraps to track calls while preserving behavior
@@ -554,39 +553,43 @@ def test_shell_mode_in_interactive_loop(
     assert "Output:" in args
 
 
-def test_create_rich_formatted_response() -> None:
-    """Test the create_rich_formatted_response function."""
+def test_display_response(mocker: MockerFixture) -> None:
+    """Test the display_response function."""
+    # Mock console.print to verify output
+    mock_print = mocker.patch("simple_agent.display.console.print")
+    
     # Test with COMPLETE status
-    complete_response = {
-        "message": "This is a test message",
-        "status": AgentStatus.COMPLETE,
-        "next_action": None,
-    }
-
-    formatted = create_rich_formatted_response(complete_response)
-    assert "This is a test message" in formatted
-    assert "Next action" not in formatted
-
+    display_response(
+        message="This is a test message",
+        status=AgentStatus.COMPLETE.value,
+        next_action=None,
+    )
+    mock_print.assert_called_with("This is a test message")
+    
+    # Reset mock
+    mock_print.reset_mock()
+    
     # Test with CONTINUE status
-    continue_response = {
-        "message": "Working on your request",
-        "status": AgentStatus.CONTINUE,
-        "next_action": "I will check the documentation next",
-    }
-
-    formatted = create_rich_formatted_response(continue_response)
-    assert "Working on your request" in formatted
-    assert "Next action" in formatted
-    assert "I will check the documentation next" in formatted
-
+    display_response(
+        message="Working on your request",
+        status=AgentStatus.CONTINUE.value,
+        next_action="I will check the documentation next",
+    )
+    # Should call print twice - once for message, once for next action
+    assert mock_print.call_count == 2
+    mock_print.assert_any_call("Working on your request")
+    mock_print.assert_any_call("[bold blue]Next:[/bold blue] I will check the documentation next")
+    
+    # Reset mock
+    mock_print.reset_mock()
+    
     # Test with ASK status
-    ask_response = {
-        "message": "I found multiple options",
-        "status": AgentStatus.ASK,
-        "next_action": "Which option do you prefer?",
-    }
-
-    formatted = create_rich_formatted_response(ask_response)
-    assert "I found multiple options" in formatted
-    assert "Question" in formatted
-    assert "Which option do you prefer?" in formatted
+    display_response(
+        message="I found multiple options",
+        status=AgentStatus.ASK.value,
+        next_action="Which option do you prefer?",
+    )
+    # Should call print twice - once for message, once for question
+    assert mock_print.call_count == 2
+    mock_print.assert_any_call("I found multiple options")
+    mock_print.assert_any_call("[bold yellow]Question:[/bold yellow] Which option do you prefer?")

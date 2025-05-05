@@ -4,10 +4,15 @@ import os
 import re
 from pathlib import Path
 
-from rich.console import Console
-
+from simple_agent.display import (
+    display_error,
+    display_info,
+    display_warning,
+    print_tool_call,
+    print_tool_result,
+)
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import print_tool_call
+from simple_agent.tools.utils import clean_path
 
 
 def grep_files(
@@ -37,10 +42,16 @@ def grep_files(
     Returns:
         Dictionary mapping file paths to lists of (line_number, line_content) tuples
     """
-    console = Console()
-
     # Create a kwargs dictionary with all provided arguments
-    kwargs: dict[str, object] = {}
+    kwargs: dict[str, object] = {
+        "pattern": pattern,
+        "recursive": recursive,
+        "case_sensitive": case_sensitive,
+        "include_hidden": include_hidden,
+        "max_results": max_results,
+        "context_lines": context_lines,
+    }
+
     if file_paths:
         kwargs["file_paths"] = file_paths
     if directory:
@@ -48,8 +59,8 @@ def grep_files(
     if include_pattern:
         kwargs["include_pattern"] = include_pattern
 
-    # Print the tool call with cleaned paths
-    print_tool_call("grep_files", pattern, **kwargs)
+    # Print the tool call
+    print_tool_call("grep_files", **kwargs)
 
     try:
         # Compile the pattern
@@ -57,7 +68,7 @@ def grep_files(
         try:
             compiled_pattern = re.compile(pattern, flags)
         except re.error as e:
-            console.print(f"[bold red]Invalid regex pattern:[/bold red] {e}")
+            display_error(f"Invalid regex pattern: {e}")
             return {"error": [(-1, f"Invalid regex pattern: {e}")]}
 
         # Get the files to search
@@ -70,7 +81,7 @@ def grep_files(
                 if full_path.is_file():
                     files_to_search.append(str(full_path))
                 else:
-                    console.print(f"[yellow]Warning:[/yellow] {path} is not a file")
+                    display_warning(f"{clean_path(path)} is not a file")
 
         # Process directory search
         elif directory or include_pattern:
@@ -80,10 +91,10 @@ def grep_files(
 
             base_path = Path(base_dir).expanduser().resolve()
             if not base_path.exists() or not base_path.is_dir():
-                console.print(
-                    f"[bold red]Error:[/bold red] {base_dir} is not a valid directory"
-                )
-                return {"error": [(-1, f"{base_dir} is not a valid directory")]}
+                display_error(f"{clean_path(base_dir)} is not a valid directory")
+                return {
+                    "error": [(-1, f"{clean_path(base_dir)} is not a valid directory")]
+                }
 
             # Walk the directory tree if needed
             if recursive:
@@ -135,17 +146,15 @@ def grep_files(
                     files_to_search.append(file)
 
         # Perform the search
-        console.print(
-            f"[bold blue]Searching in:[/bold blue] {len(files_to_search)} files"
+        display_info(
+            f"Searching in {len(files_to_search)} files for pattern '{pattern}'"
         )
         result: dict[str, list[tuple[int, str]]] = {}
         total_matches = 0
 
         for file_path in files_to_search:
             if total_matches >= max_results:
-                console.print(
-                    f"[bold yellow]Warning:[/bold yellow] Reached maximum results limit ({max_results})"
-                )
+                display_warning(f"Reached maximum results limit ({max_results})")
                 break
 
             try:
@@ -180,18 +189,22 @@ def grep_files(
                     if matches:
                         result[file_path] = matches
             except Exception as e:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Error reading {file_path}: {e}"
-                )
+                display_warning(f"Error reading {clean_path(file_path)}: {e}")
                 # Continue with other files rather than failing completely
 
-        console.print(
-            f"[bold green]Found:[/bold green] {total_matches} matches in {len(result)} files"
-        )
+        # Display results summary
+        if total_matches > 0:
+            display_info(f"Found {total_matches} match(es) in {len(result)} file(s)")
+        else:
+            display_info(f"No matches found for pattern '{pattern}'")
+
+        # Display tool result
+        print_tool_result("grep_files", result)
+
         return result
 
     except Exception as e:
-        console.print(f"[bold red]Error during search:[/bold red] {e}")
+        display_error(f"Error during search with pattern '{pattern}'", e)
         return {"error": [(-1, str(e))]}
 
 
