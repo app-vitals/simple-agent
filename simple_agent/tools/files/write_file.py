@@ -4,7 +4,9 @@ from pathlib import Path
 
 from rich.console import Console
 
+from simple_agent.tools.files.diff_utils import write_file_confirmation_handler
 from simple_agent.tools.registry import register
+from simple_agent.tools.utils import print_tool_call
 
 
 def write_file(file_path: str, content: str) -> bool:
@@ -18,7 +20,7 @@ def write_file(file_path: str, content: str) -> bool:
         True if successful, False otherwise
     """
     console = Console()
-    console.print(f"[bold green]Writing:[/bold green] {file_path}")
+    print_tool_call("write_file", file_path=file_path)
 
     try:
         Path(file_path).write_text(content)
@@ -45,4 +47,5 @@ register(
     },
     returns="True if successful, False otherwise",
     requires_confirmation=True,  # Modifies the system
+    confirmation_handler=write_file_confirmation_handler,
 )

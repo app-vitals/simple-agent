@@ -1,7 +1,33 @@
 """Tool registry for Simple Agent."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol, TypeVar
+
+# Type definitions for custom confirmation handlers
+T = TypeVar("T")
+
+
+class ConfirmationHandler(Protocol):
+    """Protocol for custom confirmation handlers."""
+
+    def __call__(
+        self,
+        tool_name: str,
+        tool_args: dict[str, Any],
+        input_func: Callable[[str], str],
+    ) -> bool:
+        """Handle confirmation for a tool call.
+
+        Args:
+            tool_name: Name of the tool being called
+            tool_args: Arguments passed to the tool
+            input_func: Function to use for getting user input
+
+        Returns:
+            True if confirmed, False if denied
+        """
+        ...
+
 
 # Global registry of tools
 TOOLS: dict[str, dict[str, Any]] = {}
@@ -14,6 +40,9 @@ def register(
     parameters: dict[str, dict[str, Any]],
     returns: str,
     requires_confirmation: bool = True,
+    confirmation_handler: (
+        Callable[[str, dict[str, Any], Callable[[str], str]], bool] | None
+    ) = None,
 ) -> None:
     """Register a tool function with the registry.
 
@@ -24,6 +53,10 @@ def register(
         parameters: Parameters for the tool with type and description
         returns: Description of what the tool returns
         requires_confirmation: Whether the tool requires user confirmation
+        confirmation_handler: Optional custom function to handle confirmation UI
+            If provided, this function will be called instead of the default confirmation
+            prompt. It should take the tool name, tool arguments, and an input function,
+            and return True if the user confirms, False otherwise.
     """
     TOOLS[name] = {
         "function": function,
@@ -31,6 +64,7 @@ def register(
         "parameters": parameters,
         "returns": returns,
         "requires_confirmation": requires_confirmation,
+        "confirmation_handler": confirmation_handler,
     }
 
 
@@ -81,6 +115,23 @@ def requires_confirmation(tool_name: str) -> bool:
 
     requires_confirm = TOOLS[tool_name].get("requires_confirmation", True)
     return bool(requires_confirm)  # Ensure we return a bool
+
+
+def get_confirmation_handler(
+    tool_name: str,
+) -> Callable[[str, dict[str, Any], Callable[[str], str]], bool] | None:
+    """Get the custom confirmation handler for a tool if one exists.
+
+    Args:
+        tool_name: Name of the tool
+
+    Returns:
+        The custom confirmation handler function if one exists, or None
+    """
+    if tool_name not in TOOLS:
+        return None
+
+    return TOOLS[tool_name].get("confirmation_handler")
 
 
 def execute_tool_call(tool_name: str, arguments: dict[str, Any]) -> Any:

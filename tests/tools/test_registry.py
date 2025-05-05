@@ -2,6 +2,7 @@
 
 from simple_agent.tools.registry import (
     execute_tool_call,
+    get_confirmation_handler,
     get_tool_descriptions,
     requires_confirmation,
 )
@@ -38,6 +39,25 @@ def test_requires_confirmation() -> None:
 
     # Unknown tool should default to requiring confirmation
     assert requires_confirmation("unknown_tool") is True
+
+
+def test_get_confirmation_handler() -> None:
+    """Test getting confirmation handlers for tools."""
+    # Write file should have a custom confirmation handler
+    write_handler = get_confirmation_handler("write_file")
+    assert write_handler is not None
+    assert callable(write_handler)
+
+    # Patch file should have a custom confirmation handler
+    patch_handler = get_confirmation_handler("patch_file")
+    assert patch_handler is not None
+    assert callable(patch_handler)
+
+    # Other tools shouldn't have a custom confirmation handler
+    assert get_confirmation_handler("read_files") is None
+
+    # Unknown tool should return None
+    assert get_confirmation_handler("unknown_tool") is None
 
 
 def test_execute_tool_call() -> None:

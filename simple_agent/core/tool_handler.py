@@ -11,6 +11,7 @@ from rich.console import Console
 
 from simple_agent.tools import (
     execute_tool_call,
+    get_confirmation_handler,
     get_tool_descriptions,
     requires_confirmation,
 )
@@ -66,41 +67,53 @@ class ToolHandler:
                     requires_confirm = requires_confirmation(tool_name)
 
                 if requires_confirm:
+                    # Check if the tool has a custom confirmation handler
+                    custom_handler = get_confirmation_handler(tool_name)
 
-                    # Use input_func for tests to work, otherwise use prompt_toolkit
-                    if self.input_func != input:
-                        # For testing, use the provided input_func
-                        args_string = format_tool_args(**arguments)
-                        confirmation = self.input_func(
-                            f"Confirm {tool_name}({args_string})? [Y/n] "
+                    if custom_handler:
+                        # Use custom confirmation handler
+                        confirmed = custom_handler(
+                            tool_name, arguments, self.input_func
                         )
                     else:
-                        # Create a nice prompt_toolkit confirmation prompt
-                        confirmation_style = Style.from_dict(
-                            {
-                                "tool": "ansibrightyellow bold",
-                                "prompt": "ansiyellow",
-                                "highlight": "ansibrightgreen",
-                            }
-                        )
+                        # Use default confirmation handling
+                        if self.input_func != input:
+                            # For testing, use the provided input_func
+                            args_string = format_tool_args(**arguments)
+                            confirmation = self.input_func(
+                                f"Confirm {tool_name}({args_string})? [Y/n] "
+                            )
+                        else:
+                            # Create a nice prompt_toolkit confirmation prompt
+                            confirmation_style = Style.from_dict(
+                                {
+                                    "tool": "ansibrightyellow bold",
+                                    "prompt": "ansiyellow",
+                                    "highlight": "ansibrightgreen",
+                                }
+                            )
 
-                        # HTML-formatted prompt that highlights the tool name and includes arguments
-                        # Use format_tool_args utility to format the arguments
-                        args_string = format_tool_args(**arguments)
-                        confirm_prompt = HTML(
-                            f"<prompt>Confirm </prompt>"
-                            f"<tool>{tool_name}({args_string})</tool>"
-                            f"<prompt>? </prompt><highlight>[Y/n]</highlight> "
-                        )
+                            # HTML-formatted prompt that highlights the tool name and includes arguments
+                            # Use format_tool_args utility to format the arguments
+                            args_string = format_tool_args(**arguments)
+                            confirm_prompt = HTML(
+                                f"<prompt>Confirm </prompt>"
+                                f"<tool>{tool_name}({args_string})</tool>"
+                                f"<prompt>? </prompt><highlight>[Y/n]</highlight> "
+                            )
 
-                        # Get confirmation using prompt_toolkit
-                        confirmation = prompt(confirm_prompt, style=confirmation_style)
+                            # Get confirmation using prompt_toolkit
+                            confirmation = prompt(
+                                confirm_prompt, style=confirmation_style
+                            )
 
-                    # Empty input (just Enter) defaults to yes
-                    if confirmation == "":
-                        confirmation = "y"
+                        # Empty input (just Enter) defaults to yes
+                        if confirmation == "":
+                            confirmation = "y"
 
-                    if confirmation.lower() not in ["y", "yes"]:
+                        confirmed = confirmation.lower() in ["y", "yes"]
+
+                    if not confirmed:
                         # User rejected the tool call
                         tool_response = {
                             "role": "tool",
