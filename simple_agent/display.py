@@ -57,14 +57,9 @@ def format_tool_args(*args: object, **kwargs: object) -> str:
         if isinstance(value, str):
             formatted_kwargs.append(f"{key}='{clean_path(value)}'")
         elif isinstance(value, list | tuple) and all(isinstance(x, str) for x in value):
-            # Special handling for file_paths which should be displayed as comma-separated values
-            if key == "file_paths":
-                cleaned_paths = [clean_path(x) for x in value]
-                formatted_kwargs.append(", ".join(cleaned_paths))
-            else:
-                # For other lists/tuples, format as a list
-                formatted_items = [f"'{clean_path(x)}'" for x in value]
-                formatted_kwargs.append(f"{key}=[{', '.join(formatted_items)}]")
+            # For other lists/tuples, format as a list
+            formatted_items = [f"'{clean_path(x)}'" for x in value]
+            formatted_kwargs.append(f"{key}=[{', '.join(formatted_items)}]")
         else:
             formatted_kwargs.append(f"{key}={value}")
 
@@ -132,18 +127,7 @@ def display_warning(message: str, err: Exception | None = None) -> None:
 
     # Display exception details if provided (with different styling from errors)
     if err:
-        console.print(
-            Traceback.from_exception(
-                type(err),
-                err,
-                err.__traceback__,
-                show_locals=False,
-                width=100,
-                extra_lines=3,
-                theme=None,
-                word_wrap=True,
-            )
-        )
+        console.print(f"[dim]Exception details: {type(err).__name__} '{err}'[/dim]")
 
 
 def display_info(message: str) -> None:

@@ -64,7 +64,6 @@ def test_grep_files(mocker: MockerFixture) -> None:
     mocker.patch("simple_agent.tools.files.grep_files.print_tool_call")
     mocker.patch("simple_agent.tools.files.grep_files.print_tool_result")
     mocker.patch("simple_agent.tools.files.grep_files.display_warning")
-    mocker.patch("simple_agent.tools.files.grep_files.display_info")
 
     try:
         # Test basic pattern search across multiple files

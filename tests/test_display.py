@@ -123,9 +123,9 @@ def test_display_warning_with_exception(mock_print: MagicMock) -> None:
         "[bold yellow]Warning:[/bold yellow] Potentially problematic"
     )
 
-    # Second call should be with a Traceback object
-    second_call_args = mock_print.call_args_list[1][0][0]
-    assert isinstance(second_call_args, Traceback)
+    mock_print.assert_any_call(
+        "[dim]Exception details: ValueError 'Invalid value'[/dim]"
+    )
 
 
 @patch("simple_agent.display.console.print")
@@ -358,12 +358,6 @@ def test_format_tool_args(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "num=42" in result
     assert "flag=True" in result
 
-    # Test with file_paths special case
-    path_list = [str(test_cwd / "file1.txt"), str(test_cwd / "file2.txt")]
-    result = format_tool_args(file_paths=path_list)
-    assert "file1.txt, file2.txt" in result
-    assert "file_paths=" not in result
-
     # Test with other list keyword arguments
     result = format_tool_args(paths=path_list)
     assert "paths=[" in result
@@ -374,4 +368,4 @@ def test_format_tool_args(monkeypatch: pytest.MonkeyPatch) -> None:
     result = format_tool_args(path, pattern="*.py", file_paths=path_list)
     assert "'file.txt'" in result
     assert "pattern='*.py'" in result
-    assert "file1.txt, file2.txt" in result
+    assert "'file1.txt', 'file2.txt'" in result
