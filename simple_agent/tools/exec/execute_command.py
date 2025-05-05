@@ -4,9 +4,8 @@ import subprocess
 import sys
 from select import select
 
-from rich.console import Console
-
 from simple_agent.tools.registry import register
+from simple_agent.tools.utils import print_tool_call
 
 
 def execute_command(command: str) -> tuple[str, str, int]:
@@ -19,8 +18,7 @@ def execute_command(command: str) -> tuple[str, str, int]:
         Tuple containing (stdout, stderr, return_code)
     """
 
-    console = Console()
-    console.print(f"[bold yellow]Executing:[/bold yellow] {command}")
+    print_tool_call("execute_command", command)
 
     # For capturing the complete output to return
     stdout_capture = []

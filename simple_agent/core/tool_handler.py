@@ -14,6 +14,7 @@ from simple_agent.tools import (
     get_tool_descriptions,
     requires_confirmation,
 )
+from simple_agent.tools.utils import format_tool_args
 
 
 class ToolHandler:
@@ -65,25 +66,13 @@ class ToolHandler:
                     requires_confirm = requires_confirmation(tool_name)
 
                 if requires_confirm:
-                    # Format arguments for user-friendly display
-                    args_display = "\n".join(
-                        [
-                            f"  - {k}: {self._format_value(v)}"
-                            for k, v in arguments.items()
-                        ]
-                    )
-
-                    # Display tool information
-                    self.console.print(
-                        f"\n[bold yellow]Tool call requested:[/bold yellow] {tool_name}"
-                    )
-                    self.console.print(f"[yellow]Arguments:[/yellow]\n{args_display}")
 
                     # Use input_func for tests to work, otherwise use prompt_toolkit
                     if self.input_func != input:
                         # For testing, use the provided input_func
+                        args_string = format_tool_args(**arguments)
                         confirmation = self.input_func(
-                            f"Confirm execution of tool {tool_name}? [Y/n] "
+                            f"Confirm {tool_name}({args_string})? [Y/n] "
                         )
                     else:
                         # Create a nice prompt_toolkit confirmation prompt
@@ -95,10 +84,12 @@ class ToolHandler:
                             }
                         )
 
-                        # HTML-formatted prompt that highlights the tool name
+                        # HTML-formatted prompt that highlights the tool name and includes arguments
+                        # Use format_tool_args utility to format the arguments
+                        args_string = format_tool_args(**arguments)
                         confirm_prompt = HTML(
-                            f"<prompt>Confirm execution of tool </prompt>"
-                            f"<tool>{tool_name}</tool>"
+                            f"<prompt>Confirm </prompt>"
+                            f"<tool>{tool_name}({args_string})</tool>"
                             f"<prompt>? </prompt><highlight>[Y/n]</highlight> "
                         )
 
