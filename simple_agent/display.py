@@ -57,7 +57,7 @@ def format_tool_args(*args: object, **kwargs: object) -> str:
                 # For short lists, show all items
                 formatted_items = [f"'{clean_path(x)}'" for x in arg]
                 formatted_args.append(", ".join(formatted_items))
-        elif isinstance(arg, (int, float, bool)):
+        elif isinstance(arg, int | float | bool):
             # Format simple primitive types
             formatted_args.append(str(arg))
         else:
@@ -86,7 +86,7 @@ def format_tool_args(*args: object, **kwargs: object) -> str:
                 # For short lists, show all items
                 formatted_items = [f"'{clean_path(x)}'" for x in value]
                 formatted_kwargs.append(f"{key}=[{', '.join(formatted_items)}]")
-        elif isinstance(value, (int, float, bool)):
+        elif isinstance(value, int | float | bool):
             # Format simple primitive types
             formatted_kwargs.append(f"{key}={value}")
         elif value is None:
@@ -111,14 +111,12 @@ def display_response(message: str, status: str, next_action: str | None = None) 
 
     Args:
         message: Main response message
-        status: Response status (COMPLETE, CONTINUE, ASK)
+        status: Response status (COMPLETE, ASK)
         next_action: Optional follow-up action or question
     """
     console.print(message)
 
-    if status == "CONTINUE" and next_action:
-        console.print(f"[bold blue]Next:[/bold blue] {next_action}")
-    elif status == "ASK" and next_action:
+    if status == "ASK" and next_action:
         console.print(f"[bold yellow]Question:[/bold yellow] {next_action}")
 
 
@@ -236,7 +234,7 @@ def display_status_message(
         Formatted status message string
     """
     # Format token counts
-    token_info = f"Tokens: {tokens_sent:,} sent / {tokens_received:,} received"
+    token_info = f"Tokens: {tokens_sent:,} sent / {tokens_received:,} recv"
 
     # Add time information if available
     if elapsed_time is not None:

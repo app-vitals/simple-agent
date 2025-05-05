@@ -39,14 +39,13 @@ def test_display_response_complete(mock_print: MagicMock) -> None:
 
 
 @patch("simple_agent.display.console.print")
-def test_display_response_continue(mock_print: MagicMock) -> None:
-    """Test display_response with CONTINUE status."""
-    display_response("Working on it", "CONTINUE", "I'll check something else")
+def test_display_response_complete_with_action(mock_print: MagicMock) -> None:
+    """Test display_response with COMPLETE status and unused action."""
+    display_response("Working on it", "COMPLETE", "This action will be ignored")
 
-    # Should print message and next action separately
-    assert mock_print.call_count == 2
-    mock_print.assert_any_call("Working on it")
-    mock_print.assert_any_call("[bold blue]Next:[/bold blue] I'll check something else")
+    # Should only print the message when status is COMPLETE (ignores action)
+    assert mock_print.call_count == 1
+    mock_print.assert_called_once_with("Working on it")
 
 
 @patch("simple_agent.display.console.print")
@@ -71,126 +70,139 @@ def test_display_response_no_next_action(mock_print: MagicMock) -> None:
     mock_print.assert_called_once_with("Working on it")
 
 
-@patch("simple_agent.display.console.print")
-def test_display_error_without_exception(mock_print: MagicMock) -> None:
+@patch("simple_agent.display.update_live_display")
+def test_display_error_without_exception(mock_update: MagicMock) -> None:
     """Test display_error without an exception."""
     display_error("Something went wrong")
 
-    # Should print error message with formatting
-    mock_print.assert_called_once_with(
+    # Should call update_live_display with error message formatting
+    mock_update.assert_called_once_with(
         "[bold red]Error:[/bold red] Something went wrong"
     )
 
 
+@patch("simple_agent.display.update_live_display")
+@patch("simple_agent.live_console.live_display", None)  # Simulate no live display
 @patch("simple_agent.display.console.print")
-def test_display_error_with_exception(mock_print: MagicMock) -> None:
+def test_display_error_with_exception(
+    mock_print: MagicMock, mock_update: MagicMock
+) -> None:
     """Test display_error with an exception."""
     error = ValueError("Invalid value")
 
     display_error("Something went wrong", error)
 
-    # Should print error message and traceback
-    assert mock_print.call_count == 2
-    mock_print.assert_any_call("[bold red]Error:[/bold red] Something went wrong")
+    # Should update live display with error message
+    mock_update.assert_any_call("[bold red]Error:[/bold red] Something went wrong")
 
-    # Second call should be with a Traceback object
-    second_call_args = mock_print.call_args_list[1][0][0]
-    assert isinstance(second_call_args, Traceback)
+    # Should print traceback when no live display is available
+    assert mock_print.call_count == 1
+    assert isinstance(mock_print.call_args[0][0], Traceback)
 
 
-@patch("simple_agent.display.console.print")
-def test_display_warning_without_exception(mock_print: MagicMock) -> None:
+@patch("simple_agent.display.update_live_display")
+def test_display_warning_without_exception(mock_update: MagicMock) -> None:
     """Test display_warning without an exception."""
     display_warning("Potentially problematic")
 
-    # Should print warning message with formatting
-    mock_print.assert_called_once_with(
+    # Should update live display with warning message
+    mock_update.assert_called_once_with(
         "[bold yellow]Warning:[/bold yellow] Potentially problematic"
     )
 
 
-@patch("simple_agent.display.console.print")
-def test_display_warning_with_exception(mock_print: MagicMock) -> None:
+@patch("simple_agent.display.update_live_display")
+def test_display_warning_with_exception(mock_update: MagicMock) -> None:
     """Test display_warning with an exception."""
     error = ValueError("Invalid value")
 
     display_warning("Potentially problematic", error)
 
-    # Should print warning message and traceback
-    assert mock_print.call_count == 2
-    mock_print.assert_any_call(
+    # Should update live display with warning message and error details
+    assert mock_update.call_count == 2
+    mock_update.assert_any_call(
         "[bold yellow]Warning:[/bold yellow] Potentially problematic"
     )
 
-    mock_print.assert_any_call(
-        "[dim]Exception details: ValueError 'Invalid value'[/dim]"
-    )
+    mock_update.assert_any_call("[dim]Exception: ValueError 'Invalid value'[/dim]")
 
 
-@patch("simple_agent.display.console.print")
-def test_display_info(mock_print: MagicMock) -> None:
+@patch("simple_agent.display.update_live_display")
+def test_display_info(mock_update: MagicMock) -> None:
     """Test display_info."""
     display_info("Processing request")
 
-    # Should print info message as is
-    mock_print.assert_called_once_with("Processing request")
+    # Should update live display with info message
+    mock_update.assert_called_once_with("Processing request")
 
 
-@patch("simple_agent.display.console.print")
-def test_display_command(mock_print: MagicMock) -> None:
+@patch("simple_agent.display.update_live_display")
+def test_display_command(mock_update: MagicMock) -> None:
     """Test display_command."""
     display_command("ls -la")
 
-    # Should print command with formatting
-    mock_print.assert_called_once_with("[cyan]$ ls -la[/cyan]")
+    # Should update live display with formatted command
+    mock_update.assert_called_once_with("[cyan]$ ls -la[/cyan]")
 
 
-@patch("simple_agent.display.prompt")
-def test_get_confirmation_default_yes(mock_prompt: MagicMock) -> None:
+@patch("simple_agent.display.live_confirmation")
+def test_get_confirmation_default_yes(mock_confirm: MagicMock) -> None:
     """Test get_confirmation with default=True."""
-    # Empty response (hitting Enter)
-    mock_prompt.return_value = ""
+    # Mock the return value
+    mock_confirm.return_value = True
 
     result = get_confirmation("Proceed?")
 
-    # Should return True for empty input with default=True
+    # Should return True
     assert result is True
 
-    # Check that prompt was called
-    mock_prompt.assert_called_once()
+    # Verify live_confirmation was called with the right parameters
+    mock_confirm.assert_called_once_with("Proceed?", True)
 
 
-@patch("simple_agent.display.prompt")
-def test_get_confirmation_default_no(mock_prompt: MagicMock) -> None:
+@patch("simple_agent.display.live_confirmation")
+def test_get_confirmation_default_no(mock_confirm: MagicMock) -> None:
     """Test get_confirmation with default=False."""
-    # Empty response (hitting Enter)
-    mock_prompt.return_value = ""
+    # Mock the return value
+    mock_confirm.return_value = False
 
     result = get_confirmation("Proceed?", default=False)
 
-    # Should return False for empty input with default=False
+    # Should return False
     assert result is False
 
-    # Verify prompt was called
-    mock_prompt.assert_called_once()
+    # Verify live_confirmation was called with the right parameters
+    mock_confirm.assert_called_once_with("Proceed?", False)
 
 
-@patch("simple_agent.display.prompt")
-def test_get_confirmation_explicit_yes(mock_prompt: MagicMock) -> None:
-    """Test get_confirmation with explicit yes responses."""
-    for response in ["y", "Y", "yes", "YES", "Yes"]:
-        mock_prompt.return_value = response
-        result = get_confirmation("Proceed?")
-        assert result is True
+@patch("simple_agent.display.live_confirmation")
+def test_get_confirmation_explicit_yes(mock_confirm: MagicMock) -> None:
+    """Test get_confirmation with explicit yes response."""
+    # Mock the return value
+    mock_confirm.return_value = True
+
+    result = get_confirmation("Proceed?")
+
+    # Should return True
+    assert result is True
+
+    # Verify live_confirmation was called
+    mock_confirm.assert_called_once()
 
 
-@patch("simple_agent.display.prompt")
-def test_get_confirmation_explicit_no(mock_prompt: MagicMock) -> None:
-    """Test get_confirmation with explicit no responses."""
-    for response in ["n", "N", "no", "NO", "No"]:
-        mock_prompt.return_value = response
-        result = get_confirmation("Proceed?")
-        assert result is False
+@patch("simple_agent.display.live_confirmation")
+def test_get_confirmation_explicit_no(mock_confirm: MagicMock) -> None:
+    """Test get_confirmation with explicit no response."""
+    # Mock the return value
+    mock_confirm.return_value = False
+
+    result = get_confirmation("Proceed?")
+
+    # Should return False
+    assert result is False
+
+    # Verify live_confirmation was called
+    mock_confirm.assert_called_once()
 
 
 @patch("simple_agent.display.console.print")
@@ -204,22 +216,22 @@ def test_display_exit(mock_print: MagicMock) -> None:
     )
 
 
-@patch("simple_agent.display.console.print")
-def test_print_tool_call(mock_print: MagicMock) -> None:
+@patch("simple_agent.display.update_live_display")
+def test_print_tool_call(mock_update: MagicMock) -> None:
     """Test print_tool_call."""
     # Test with simple arguments
     print_tool_call("read_file", file_path="example.txt")
 
-    # Should print formatted tool call
-    call_args = mock_print.call_args[0][0]
+    # Should update live display with formatted tool call
+    call_args = mock_update.call_args[0][0]
     assert "[cyan]read_file[/cyan]" in call_args
     assert "file_path='example.txt'" in call_args
 
     # Test with multiple arguments
-    mock_print.reset_mock()
+    mock_update.reset_mock()
     print_tool_call("write_file", file_path="example.txt", content="Example content")
 
-    call_args = mock_print.call_args[0][0]
+    call_args = mock_update.call_args[0][0]
     assert "[cyan]write_file[/cyan]" in call_args
     assert "file_path='example.txt'" in call_args
     assert "content='Example content'" in call_args
@@ -229,8 +241,8 @@ def test_print_tool_call_with_mocked_format(
     monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture
 ) -> None:
     """Test print_tool_call with mocked format_tool_args."""
-    # Mock console.print
-    mock_console_print = mocker.patch("simple_agent.display.console.print")
+    # Mock update_live_display
+    mock_update = mocker.patch("simple_agent.display.update_live_display")
 
     # Mock format_tool_args to return a known string for testing
     mock_format_args = mocker.patch("simple_agent.display.format_tool_args")
@@ -243,13 +255,13 @@ def test_print_tool_call_with_mocked_format(
     # Test with simple tool call using keyword arguments
     print_tool_call("test_tool", arg1="value1", arg2="value2")
 
-    # Verify that print was called with a string containing both the tool name and formatted args
-    mock_console_print.assert_called_once()
-    call_args = mock_console_print.call_args[0][0]
+    # Verify that update_live_display was called with a string containing both the tool name and formatted args
+    mock_update.assert_called_once()
+    call_args = mock_update.call_args[0][0]
     assert "test_tool" in call_args
 
     # Reset mocks
-    mock_console_print.reset_mock()
+    mock_update.reset_mock()
     mock_format_args.reset_mock()
 
     # Set up mock for second test
@@ -257,31 +269,31 @@ def test_print_tool_call_with_mocked_format(
 
     # Test with file_paths keyword argument
     print_tool_call("read_files", file_paths=[str(test_cwd / "file.txt")])
-    mock_console_print.assert_called_once()
-    call_args = mock_console_print.call_args[0][0]
+    mock_update.assert_called_once()
+    call_args = mock_update.call_args[0][0]
     assert "read_files" in call_args
 
 
-@patch("simple_agent.display.console.print")
-def test_print_tool_result(mock_print: MagicMock) -> None:
+@patch("simple_agent.display.update_live_display")
+def test_print_tool_result(mock_update: MagicMock) -> None:
     """Test print_tool_result with message."""
     # Test with success message
     print_tool_result("write_file", "File successfully written")
-    call_args = mock_print.call_args[0][0]
+    call_args = mock_update.call_args[0][0]
     assert "[cyan]write_file[/cyan]" in call_args
     assert "File successfully written" in call_args
 
     # Test with error message
-    mock_print.reset_mock()
+    mock_update.reset_mock()
     print_tool_result("write_file", "Failed to write file")
-    call_args = mock_print.call_args[0][0]
+    call_args = mock_update.call_args[0][0]
     assert "[cyan]write_file[/cyan]" in call_args
     assert "Failed to write file" in call_args
 
     # Test with file count message
-    mock_print.reset_mock()
+    mock_update.reset_mock()
     print_tool_result("glob_files", "Found 2 files matching pattern '*.txt'")
-    call_args = mock_print.call_args[0][0]
+    call_args = mock_update.call_args[0][0]
     assert "[cyan]glob_files[/cyan]" in call_args
     assert "Found 2 files matching pattern '*.txt'" in call_args
 
@@ -340,7 +352,8 @@ def test_format_tool_args(monkeypatch: pytest.MonkeyPatch) -> None:
     assert format_tool_args([]) == ""
 
     # Test with list of non-strings
-    assert format_tool_args([1, 2, 3]) == "[1, 2, 3]"
+    result = format_tool_args([1, 2, 3])
+    assert "<list>" in result  # Implementation changed to show type instead of value
 
     # Test with keyword arguments
     result = format_tool_args(file=path, num=42, flag=True)

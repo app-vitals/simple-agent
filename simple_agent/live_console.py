@@ -264,11 +264,8 @@ def live_confirmation(message: str, default: bool = True) -> bool:
             return default
         return response.lower() in ["y", "yes"]
 
-    # Create the confirmation message but don't add it to the live display yet
-    # We'll show it only at the input prompt at the bottom of the console
-    confirm_message = (
-        f"[bold yellow]Confirm[/bold yellow] {message} [bold yellow][Y/n][/bold yellow]"
-    )
+    # No need to create this message since we're already formatting it for input/output
+    # and it's not used elsewhere in the function
 
     # Temporarily stop the live display to get user input
     live_display.stop()
@@ -308,11 +305,8 @@ def live_confirmation(message: str, default: bool = True) -> bool:
             f"{yellow_text}Confirm{reset_text} {formatted_message} {yellow_text}[{default_text}]{reset_text} "
         )
 
-        # Process the response
-        if not response:
-            result = default
-        else:
-            result = response.lower() in ["y", "yes"]
+        # Process the response using a ternary operator
+        result = default if not response else response.lower() in ["y", "yes"]
 
         # Display the user's choice in the live context
         choice_text = "Yes" if result else "No"
@@ -327,7 +321,9 @@ def live_confirmation(message: str, default: bool = True) -> bool:
         return result
     except Exception as e:
         # Make sure we restart the live display even if there's an error
-        if live_display and not live_display.is_active:
-            live_display.start()
+        if live_display:
+            # Use suppress to ignore any exceptions when trying to restart
+            with contextlib.suppress(Exception):
+                live_display.start()
         # Re-raise the exception
         raise e

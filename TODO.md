@@ -5,3 +5,4 @@
   * Show seconds elapsed
   * Show tokens sent/received
 * Compact
+* Simplify?

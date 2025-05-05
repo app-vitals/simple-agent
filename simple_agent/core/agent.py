@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from simple_agent.cli.prompt import CLI, CLIMode
-from simple_agent.core.schema import AgentResponse, AgentStatus
+from simple_agent.core.schema import AgentResponse
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 from simple_agent.display import (
     console,
@@ -150,7 +150,7 @@ class Agent:
                 if iteration == 0:
                     set_stage_message("Analyzing request...")
                 else:
-                    set_stage_message(f"Processing tools (step {iteration})...")
+                    set_stage_message(f"Processing tools...")
 
                 # Send to LLM
                 response = self._send_llm_request(self.context)

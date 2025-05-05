@@ -26,7 +26,6 @@ def test_agent_init(agent: Agent) -> None:
     assert hasattr(agent, "llm_client")
     assert hasattr(agent, "tool_handler")
     assert hasattr(agent, "tools")
-    # Note: console is now imported from display module, not an attribute of Agent
 
 
 def test_agent_input_handler(agent: Agent, mocker: MockerFixture) -> None:
@@ -49,10 +48,6 @@ def test_agent_input_handler(agent: Agent, mocker: MockerFixture) -> None:
 
     # Verify tool_handler was updated with input_func
     assert agent.tool_handler.input_func == mock_input
-
-
-# We've covered EOF handling in test_agent_input_handler
-# and more thoroughly in the CLI tests, so this test is now redundant.
 
 
 def test_process_input_ai_request(agent: Agent, mocker: MockerFixture) -> None:
@@ -330,33 +325,6 @@ def test_process_llm_response_ask(agent: Agent, mocker: MockerFixture) -> None:
 
     # Call the method
     agent._process_llm_response(json_content, MagicMock())
-
-    # Verify response was added to context
-    assert agent.context[-1]["role"] == "assistant"
-    assert agent.context[-1]["content"] == json_content
-
-
-def test_process_llm_response_continue(agent: Agent, mocker: MockerFixture) -> None:
-    """Test processing a JSON response with CONTINUE status."""
-    # Mock the _handle_ai_request method
-    agent._handle_ai_request = mocker.MagicMock()  # type: ignore
-
-    # Create a CONTINUE response
-    json_content = json.dumps(
-        {
-            "message": "Working on it",
-            "status": "CONTINUE",
-            "next_action": "I'll check the documentation next",
-        }
-    )
-
-    # Call the method
-    agent._process_llm_response(json_content, MagicMock())
-
-    # Verify that it called _handle_ai_request with the continuation prompt
-    agent._handle_ai_request.assert_called_once_with(  # type: ignore
-        "Please continue by I'll check the documentation next"
-    )
 
     # Verify response was added to context
     assert agent.context[-1]["role"] == "assistant"

@@ -1,7 +1,6 @@
 """Tool for executing shell commands."""
 
 import subprocess
-import sys
 from select import select
 
 from simple_agent.display import (
@@ -10,7 +9,6 @@ from simple_agent.display import (
     print_tool_call,
     update_live_display,
 )
-from simple_agent.live_console import live_display
 from simple_agent.tools.registry import register
 
 
