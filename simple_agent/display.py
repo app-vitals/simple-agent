@@ -5,11 +5,12 @@ from typing import Any
 
 from prompt_toolkit import prompt
 from prompt_toolkit.formatted_text import HTML
-from rich.console import Console
 from rich.traceback import Traceback
 
-# Create a shared Console instance for all output
-console = Console()
+from simple_agent.live_console import (
+    console,
+    update_live_display,
+)
 
 
 def clean_path(path: str) -> str:
@@ -96,23 +97,35 @@ def display_error(message: str, err: Exception | None = None) -> None:
         message: Human-readable error message
         err: Optional exception for display
     """
-    # Display the primary error message
-    console.print(f"[bold red]Error:[/bold red] {message}")
+    # Format the error message
+    error_message = f"[bold red]Error:[/bold red] {message}"
+
+    # Update the live display if available
+    update_live_display(error_message)
 
     # Display exception details if provided
     if err:
-        console.print(
-            Traceback.from_exception(
-                type(err),
-                err,
-                err.__traceback__,
-                show_locals=False,
-                width=100,
-                extra_lines=3,
-                theme=None,
-                word_wrap=True,
+        # Import live_display from the live_console module
+        from simple_agent.live_console import live_display
+
+        if live_display is None:
+            # Only show traceback in console output if no live display
+            console.print(
+                Traceback.from_exception(
+                    type(err),
+                    err,
+                    err.__traceback__,
+                    show_locals=False,
+                    width=100,
+                    extra_lines=3,
+                    theme=None,
+                    word_wrap=True,
+                )
             )
-        )
+        else:
+            # For live display, show a simplified error message
+            err_summary = f"[dim]Exception: {type(err).__name__} - {str(err)}[/dim]"
+            update_live_display(err_summary)
 
 
 def display_warning(message: str, err: Exception | None = None) -> None:
@@ -122,12 +135,16 @@ def display_warning(message: str, err: Exception | None = None) -> None:
         message: Human-readable warning message
         err: Optional exception for display
     """
-    # Display the primary warning message
-    console.print(f"[bold yellow]Warning:[/bold yellow] {message}")
+    # Format the warning message
+    warning_message = f"[bold yellow]Warning:[/bold yellow] {message}"
+
+    # Update the live display if available
+    update_live_display(warning_message)
 
     # Display exception details if provided (with different styling from errors)
     if err:
-        console.print(f"[dim]Exception details: {type(err).__name__} '{err}'[/dim]")
+        err_summary = f"[dim]Exception: {type(err).__name__} '{err}'[/dim]"
+        update_live_display(err_summary)
 
 
 def display_info(message: str) -> None:
@@ -136,7 +153,8 @@ def display_info(message: str) -> None:
     Args:
         message: Information text to display
     """
-    console.print(message)
+    # Update the live display if available
+    update_live_display(message)
 
 
 def display_command(command: str) -> None:
@@ -145,7 +163,8 @@ def display_command(command: str) -> None:
     Args:
         command: The shell command to be displayed
     """
-    console.print(f"[cyan]$ {command}[/cyan]")
+    command_message = f"[cyan]$ {command}[/cyan]"
+    update_live_display(command_message)
 
 
 def get_confirmation(message: str, default: bool = True) -> bool:
@@ -179,6 +198,35 @@ def display_exit(reason: str) -> None:
     console.print(f"[bold blue]Exiting:[/bold blue] {reason}")
 
 
+def display_status_message(
+    tokens_sent: int, tokens_received: int, elapsed_time: float | None = None
+) -> str:
+    """Format status message with token and time information.
+
+    Args:
+        tokens_sent: Number of tokens sent to the LLM
+        tokens_received: Number of tokens received from the LLM
+        elapsed_time: Optional elapsed time in seconds
+
+    Returns:
+        Formatted status message string
+    """
+    # Format token counts
+    token_info = f"Tokens: {tokens_sent:,} sent / {tokens_received:,} received"
+
+    # Add time information if available
+    if elapsed_time is not None:
+        if elapsed_time < 60:
+            time_info = f"{int(elapsed_time)}s"
+        else:
+            minutes = int(elapsed_time // 60)
+            seconds = int(elapsed_time % 60)
+            time_info = f"{minutes}m {seconds}s"
+        return f"{token_info} • Time: {time_info}"
+
+    return token_info
+
+
 def print_tool_call(tool_name: str, **args: Any) -> None:
     """Print standardized tool execution announcement.
 
@@ -188,7 +236,10 @@ def print_tool_call(tool_name: str, **args: Any) -> None:
     """
     # Format args for display using format_tool_args to clean paths
     args_str = format_tool_args(**args)
-    console.print(f"[cyan]{tool_name}[/cyan]({args_str})")
+    tool_call_message = f"[cyan]{tool_name}[/cyan]({args_str})"
+
+    # Update the display with the tool call message
+    update_live_display(tool_call_message)
 
 
 def print_tool_result(tool_name: str, message: str) -> None:
@@ -198,4 +249,7 @@ def print_tool_result(tool_name: str, message: str) -> None:
         tool_name: Name of the tool that was executed
         message: Descriptive message about the result
     """
-    console.print(f"[cyan]{tool_name}[/cyan]: {message}")
+    tool_result_message = f"[cyan]{tool_name}[/cyan]: {message}"
+
+    # Update the display with the tool result message
+    update_live_display(tool_result_message)

@@ -109,7 +109,7 @@ class ToolHandler:
                         updated_messages.append(tool_response)
                         continue
 
-                # Execute the tool
+                # Execute the tool - the tool implementation handles its own output
                 result = execute_tool_call(tool_name, arguments)
 
                 # Add tool response to messages
@@ -121,7 +121,10 @@ class ToolHandler:
                 }
                 updated_messages.append(tool_response)
             except json.JSONDecodeError:
-                display_error("Invalid tool arguments")
+                error_message = "Invalid tool arguments"
+                # Display error in the standard console
+                display_error(error_message)
+
                 tool_response = {
                     "role": "tool",
                     "tool_call_id": tool_id,

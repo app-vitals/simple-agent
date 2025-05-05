@@ -19,6 +19,10 @@ class LLMClient:
         """
         self.api_key = api_key or config.llm.api_key
 
+        # Initialize token counters
+        self.tokens_sent = 0
+        self.tokens_received = 0
+
         # Configure LiteLLM
         litellm.drop_params = True  # Don't send unnecessary params
 
@@ -60,6 +64,14 @@ class LLMClient:
 
             # Call the LLM API
             response = litellm.completion(**params)
+
+            # Update token counters from response
+            if hasattr(response, "usage") and response.usage:
+                if hasattr(response.usage, "prompt_tokens"):
+                    self.tokens_sent += response.usage.prompt_tokens
+                if hasattr(response.usage, "completion_tokens"):
+                    self.tokens_received += response.usage.completion_tokens
+
             return response
         except Exception as e:
             display_error(f"API Error: {e}")
@@ -82,3 +94,11 @@ class LLMClient:
         tool_calls = getattr(message, "tool_calls", None)
 
         return content, tool_calls
+
+    def get_token_counts(self) -> tuple[int, int]:
+        """Get the current token counts.
+
+        Returns:
+            Tuple of (tokens_sent, tokens_received)
+        """
+        return self.tokens_sent, self.tokens_received
