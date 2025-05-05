@@ -2,10 +2,14 @@
 
 from pathlib import Path
 
-from simple_agent.display import display_success, display_warning, print_tool_call
+from simple_agent.display import (
+    clean_path,
+    display_success,
+    display_warning,
+    print_tool_call,
+)
 from simple_agent.tools.files.diff_utils import write_file_confirmation_handler
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import clean_path
 
 
 def write_file(file_path: str, content: str) -> bool:

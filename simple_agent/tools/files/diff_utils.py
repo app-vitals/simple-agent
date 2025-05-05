@@ -8,12 +8,13 @@ from typing import Any
 from rich.syntax import Syntax
 
 from simple_agent.display import (
+    clean_path,
     console,
     display_info,
     display_warning,
+    format_tool_args,
     get_confirmation,
 )
-from simple_agent.tools.utils import clean_path, format_tool_args
 
 
 def create_git_diff_view(file_path: str, old_content: str, new_content: str) -> str:
@@ -146,7 +147,7 @@ def show_git_diff_confirmation(
         return confirmation.lower() in ["y", "yes"]
     else:
         # Use the standardized confirmation function from display module
-        return get_confirmation(f"Confirm {tool_name}{args_display}?")
+        return get_confirmation(f"<ansicyan>{tool_name}</ansicyan>{args_display}?")
 
 
 def write_file_confirmation_handler(

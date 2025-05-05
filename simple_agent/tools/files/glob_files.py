@@ -5,12 +5,12 @@ import os
 from pathlib import Path
 
 from simple_agent.display import (
+    clean_path,
     display_warning,
     print_tool_call,
     print_tool_result,
 )
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import clean_path
 
 
 def glob_files(
@@ -103,7 +103,7 @@ def glob_files(
             if not include_hidden and path.name.startswith("."):
                 continue
 
-            result.append(str(path))
+            result.append(str(path))  # Store the full path for accurate sorting
 
         # Sort files by modification time (newest first)
         result.sort(key=lambda x: os.path.getmtime(x), reverse=True)
@@ -116,7 +116,8 @@ def glob_files(
         # Display tool result with message
         print_tool_result("glob_files", message)
 
-        return result
+        # Return cleaned paths for display
+        return [clean_path(path) for path in result]
 
     except Exception as e:
         display_warning(f"Error during glob search with pattern '{pattern}'", e)

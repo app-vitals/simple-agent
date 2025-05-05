@@ -5,12 +5,12 @@ from pathlib import Path
 from typing import Any
 
 from simple_agent.display import (
+    clean_path,
     display_warning,
     print_tool_call,
     print_tool_result,
 )
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import clean_path
 
 
 def list_directory(

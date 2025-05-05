@@ -4,14 +4,18 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-from simple_agent.display import display_error, display_info, get_confirmation
+from simple_agent.display import (
+    display_error,
+    display_info,
+    format_tool_args,
+    get_confirmation,
+)
 from simple_agent.tools import (
     execute_tool_call,
     get_confirmation_handler,
     get_tool_descriptions,
     requires_confirmation,
 )
-from simple_agent.tools.utils import format_tool_args
 
 
 class ToolHandler:
@@ -88,7 +92,7 @@ class ToolHandler:
                             # Use the standardized confirmation function from display module
                             args_string = format_tool_args(**arguments)
                             confirmed = get_confirmation(
-                                f"Confirm {tool_name}({args_string})?"
+                                f"<ansicyan>{tool_name}</ansicyan>({args_string})?"
                             )
 
                     if not confirmed:

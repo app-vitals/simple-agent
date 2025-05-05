@@ -5,12 +5,12 @@ import re
 from pathlib import Path
 
 from simple_agent.display import (
+    clean_path,
     display_warning,
     print_tool_call,
     print_tool_result,
 )
 from simple_agent.tools.registry import register
-from simple_agent.tools.utils import clean_path
 
 
 def grep_files(
@@ -195,7 +195,12 @@ def grep_files(
         # Display tool result with message
         print_tool_result("grep_files", message)
 
-        return result
+        # Clean the file paths in the result keys
+        cleaned_result = {}
+        for file_path, matches in result.items():
+            cleaned_result[clean_path(file_path)] = matches
+
+        return cleaned_result
 
     except Exception as e:
         display_warning(f"Error during search with pattern '{pattern}'", e)

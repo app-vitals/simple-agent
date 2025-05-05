@@ -1,11 +1,15 @@
 """Tests for the display utilities module."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+from pytest_mock import MockerFixture
 from rich.console import Console
 from rich.traceback import Traceback
 
 from simple_agent.display import (
+    clean_path,
     console,
     display_command,
     display_error,
@@ -14,6 +18,7 @@ from simple_agent.display import (
     display_response,
     display_success,
     display_warning,
+    format_tool_args,
     get_confirmation,
     print_tool_call,
     print_tool_result,
@@ -230,6 +235,43 @@ def test_print_tool_call(mock_print: MagicMock) -> None:
     assert "content='Example content'" in call_args
 
 
+def test_print_tool_call_with_mocked_format(
+    monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture
+) -> None:
+    """Test print_tool_call with mocked format_tool_args."""
+    # Mock console.print
+    mock_console_print = mocker.patch("simple_agent.display.console.print")
+
+    # Mock format_tool_args to return a known string for testing
+    mock_format_args = mocker.patch("simple_agent.display.format_tool_args")
+    mock_format_args.return_value = "arg1=value1, arg2=value2"
+
+    # Mock the current working directory
+    test_cwd = Path("/home/user/project")
+    monkeypatch.setattr(Path, "cwd", lambda: test_cwd)
+
+    # Test with simple tool call using keyword arguments
+    print_tool_call("test_tool", arg1="value1", arg2="value2")
+
+    # Verify that print was called with a string containing both the tool name and formatted args
+    mock_console_print.assert_called_once()
+    call_args = mock_console_print.call_args[0][0]
+    assert "test_tool" in call_args
+
+    # Reset mocks
+    mock_console_print.reset_mock()
+    mock_format_args.reset_mock()
+
+    # Set up mock for second test
+    mock_format_args.return_value = "file.txt"
+
+    # Test with file_paths keyword argument
+    print_tool_call("read_files", file_paths=[str(test_cwd / "file.txt")])
+    mock_console_print.assert_called_once()
+    call_args = mock_console_print.call_args[0][0]
+    assert "read_files" in call_args
+
+
 @patch("simple_agent.display.console.print")
 def test_print_tool_result(mock_print: MagicMock) -> None:
     """Test print_tool_result with message."""
@@ -252,3 +294,84 @@ def test_print_tool_result(mock_print: MagicMock) -> None:
     call_args = mock_print.call_args[0][0]
     assert "[cyan]glob_files[/cyan]" in call_args
     assert "Found 2 files matching pattern '*.txt'" in call_args
+
+
+def test_clean_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the clean_path function."""
+    # Mock the current working directory
+    test_cwd = Path("/home/user/project")
+    monkeypatch.setattr(Path, "cwd", lambda: test_cwd)
+
+    # Test with path under CWD
+    cwd_path = str(test_cwd / "file.txt")
+    assert clean_path(cwd_path) == "file.txt"
+
+    # Test with path in subdirectory under CWD
+    subdir_path = str(test_cwd / "subdir" / "file.txt")
+    assert clean_path(subdir_path) == "subdir/file.txt"
+
+    # Test with CWD itself
+    assert clean_path(str(test_cwd)) == "."
+
+    # Test with path outside CWD
+    outside_path = "/tmp/file.txt"
+    assert clean_path(outside_path) == outside_path
+
+    # Test with relative path (should remain unchanged)
+    relative_path = "relative/path.txt"
+    assert clean_path(relative_path) == relative_path
+
+
+def test_format_tool_args(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the format_tool_args function."""
+    # Mock the current working directory
+    test_cwd = Path("/home/user/project")
+    monkeypatch.setattr(Path, "cwd", lambda: test_cwd)
+
+    # Test with string arguments
+    path = str(test_cwd / "file.txt")
+    assert format_tool_args(path) == "'file.txt'"
+
+    # Test with multiple string arguments
+    path2 = str(test_cwd / "another.txt")
+    assert format_tool_args(path, path2) == "'file.txt', 'another.txt'"
+
+    # Test with non-string arguments
+    assert format_tool_args(123) == "123"
+    assert format_tool_args(path, 123, True) == "'file.txt', 123, True"
+
+    # Test with list of strings
+    path_list = [str(test_cwd / "file1.txt"), str(test_cwd / "file2.txt")]
+    result = format_tool_args(path_list)
+    assert "'file1.txt'" in result
+    assert "'file2.txt'" in result
+
+    # Test with empty list
+    assert format_tool_args([]) == ""
+
+    # Test with list of non-strings
+    assert format_tool_args([1, 2, 3]) == "[1, 2, 3]"
+
+    # Test with keyword arguments
+    result = format_tool_args(file=path, num=42, flag=True)
+    assert "file='file.txt'" in result
+    assert "num=42" in result
+    assert "flag=True" in result
+
+    # Test with file_paths special case
+    path_list = [str(test_cwd / "file1.txt"), str(test_cwd / "file2.txt")]
+    result = format_tool_args(file_paths=path_list)
+    assert "file1.txt, file2.txt" in result
+    assert "file_paths=" not in result
+
+    # Test with other list keyword arguments
+    result = format_tool_args(paths=path_list)
+    assert "paths=[" in result
+    assert "'file1.txt'" in result
+    assert "'file2.txt'" in result
+
+    # Test combined positional and keyword arguments
+    result = format_tool_args(path, pattern="*.py", file_paths=path_list)
+    assert "'file.txt'" in result
+    assert "pattern='*.py'" in result
+    assert "file1.txt, file2.txt" in result

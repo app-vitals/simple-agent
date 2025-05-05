@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from simple_agent.display import (
+    clean_path,
     display_warning,
     print_tool_call,
     print_tool_result,
@@ -34,10 +35,12 @@ def patch_file(file_path: str, old_content: str, new_content: str) -> bool:
         Path(file_path).write_text(updated_content)
 
         # Display success message
-        print_tool_result("patch_file", f"Successfully patched file {file_path}")
+        print_tool_result(
+            "patch_file", f"Successfully patched file {clean_path(file_path)}"
+        )
         return True
     except Exception as e:
-        display_warning(f"Error patching file {file_path}", e)
+        display_warning(f"Error patching file {clean_path(file_path)}", e)
         return False
 
 
