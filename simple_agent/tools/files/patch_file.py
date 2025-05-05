@@ -4,7 +4,9 @@ from pathlib import Path
 
 from rich.console import Console
 
+from simple_agent.tools.files.diff_utils import patch_file_confirmation_handler
 from simple_agent.tools.registry import register
+from simple_agent.tools.utils import print_tool_call
 
 
 def patch_file(file_path: str, old_content: str, new_content: str) -> bool:
@@ -19,6 +21,8 @@ def patch_file(file_path: str, old_content: str, new_content: str) -> bool:
         True if successful, False otherwise
     """
     console = Console()
+    print_tool_call("patch_file", file_path=file_path)
+
     try:
         current_content = Path(file_path).read_text()
         if old_content not in current_content:
@@ -29,7 +33,6 @@ def patch_file(file_path: str, old_content: str, new_content: str) -> bool:
 
         updated_content = current_content.replace(old_content, new_content)
         Path(file_path).write_text(updated_content)
-        console.print(f"[bold green]Patched:[/bold green] {file_path}")
         return True
     except Exception as e:
         console.print(f"[bold red]Error patching file:[/bold red] {e}")
@@ -57,4 +60,5 @@ register(
     },
     returns="True if successful, False otherwise",
     requires_confirmation=True,  # Modifies the system
+    confirmation_handler=patch_file_confirmation_handler,
 )

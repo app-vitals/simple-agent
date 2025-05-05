@@ -13,6 +13,7 @@ from simple_agent.tools.files import (
 )
 from simple_agent.tools.registry import (
     execute_tool_call,
+    get_confirmation_handler,
     get_tool_descriptions,
     requires_confirmation,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "get_tool_descriptions",
     "requires_confirmation",
     "execute_tool_call",
+    "get_confirmation_handler",
     # File tools
     "read_files",
     "write_file",
