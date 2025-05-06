@@ -122,9 +122,13 @@ class Agent:
         if self.request_start_time is not None:
             # Calculate elapsed time since request started
             current_elapsed = time.monotonic() - self.request_start_time
-        # Get token counts from LLM client
-        tokens_sent, tokens_received = self.llm_client.get_token_counts()
-        return display_status_message(tokens_sent, tokens_received, current_elapsed)
+        # Get token counts and cost from LLM client
+        tokens_sent, tokens_received, completion_cost = (
+            self.llm_client.get_token_counts()
+        )
+        return display_status_message(
+            tokens_sent, tokens_received, current_elapsed, completion_cost
+        )
 
     def _handle_ai_request(self, message: str) -> None:
         """Process a request through the AI model and handle tools if needed.

@@ -467,3 +467,67 @@ def test_context_management() -> None:
 
     # Verify we kept only the 10 most recent messages
     assert len(agent.context) == 10
+
+
+def test_get_status_message(agent: Agent, mocker: MockerFixture) -> None:
+    """Test the _get_status_message method."""
+    # Mock the LLM client
+    agent.llm_client = mocker.MagicMock()
+
+    # Set up token counts and cost
+    mocker.patch.object(
+        agent.llm_client, "get_token_counts", return_value=(100, 50, 0.0025)
+    )
+
+    # Setup for elapsed time calculation
+    agent.request_start_time = 1000.0  # Set a fixed start time
+    mock_monotonic = mocker.patch(
+        "time.monotonic", return_value=1002.5
+    )  # 2.5 seconds later
+
+    # Mock display_status_message function
+    mock_display = mocker.patch(
+        "simple_agent.core.agent.display_status_message", return_value="Status message"
+    )
+
+    # Call the method
+    result = agent._get_status_message()
+
+    # Verify monotonic was called
+    mock_monotonic.assert_called_once()
+
+    # Verify result
+    assert result == "Status message"
+
+    # Verify display_status_message was called with correct arguments
+    mock_display.assert_called_once_with(100, 50, 2.5, 0.0025)
+
+
+def test_get_status_message_no_request_time(
+    agent: Agent, mocker: MockerFixture
+) -> None:
+    """Test _get_status_message when no request is in progress."""
+    # Mock the LLM client
+    agent.llm_client = mocker.MagicMock()
+
+    # Set up token counts and cost
+    mocker.patch.object(
+        agent.llm_client, "get_token_counts", return_value=(100, 50, 0.0025)
+    )
+
+    # Set request_start_time to None (no request in progress)
+    agent.request_start_time = None
+
+    # Mock display_status_message function
+    mock_display = mocker.patch(
+        "simple_agent.core.agent.display_status_message", return_value="Status message"
+    )
+
+    # Call the method
+    result = agent._get_status_message()
+
+    # Verify result
+    assert result == "Status message"
+
+    # Verify display_status_message was called with correct arguments (no elapsed time)
+    mock_display.assert_called_once_with(100, 50, None, 0.0025)

@@ -221,20 +221,28 @@ def display_exit(reason: str) -> None:
 
 
 def display_status_message(
-    tokens_sent: int, tokens_received: int, elapsed_time: float | None = None
+    tokens_sent: int,
+    tokens_received: int,
+    elapsed_time: float | None = None,
+    cost: float | None = None,
 ) -> str:
-    """Format status message with token and time information.
+    """Format status message with token, time, and cost information.
 
     Args:
         tokens_sent: Number of tokens sent to the LLM
         tokens_received: Number of tokens received from the LLM
         elapsed_time: Optional elapsed time in seconds
+        cost: Optional cost of LLM API calls in USD
 
     Returns:
         Formatted status message string
     """
     # Format token counts
     token_info = f"Tokens: {tokens_sent:,} sent / {tokens_received:,} recv"
+
+    # Add cost information if available
+    if cost is not None:
+        token_info += f" • Cost: ${cost:.4f}"
 
     # Add time information if available
     if elapsed_time is not None:

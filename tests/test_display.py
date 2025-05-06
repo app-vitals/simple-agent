@@ -16,6 +16,7 @@ from simple_agent.display import (
     display_exit,
     display_info,
     display_response,
+    display_status_message,
     display_warning,
     format_tool_args,
     get_confirmation,
@@ -372,3 +373,54 @@ def test_format_tool_args(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "'file.txt'" in result
     assert "pattern='*.py'" in result
     assert "'file1.txt', 'file2.txt'" in result
+
+
+def test_display_status_message_with_cost() -> None:
+    """Test display_status_message with cost information."""
+    # Test with tokens, elapsed time, and cost
+    result = display_status_message(100, 50, 2.5, 0.0025)
+    assert "Tokens: 100 sent / 50 recv" in result
+    assert "Time: 2s" in result
+    assert "Cost: $0.0025" in result
+
+    # Test with different cost value
+    result = display_status_message(500, 200, 10.8, 0.0125)
+    assert "Tokens: 500 sent / 200 recv" in result
+    assert "Time: 10s" in result
+    assert "Cost: $0.0125" in result
+
+    # Test with larger cost value
+    result = display_status_message(5000, 3000, 25.2, 0.1500)
+    assert "Tokens: 5,000 sent / 3,000 recv" in result
+    assert "Time: 25s" in result
+    assert "Cost: $0.1500" in result
+
+
+def test_display_status_message_without_cost() -> None:
+    """Test display_status_message without cost information."""
+    # Test with tokens and elapsed time, but no cost
+    result = display_status_message(100, 50, 2.5)
+    assert "Tokens: 100 sent / 50 recv" in result
+    assert "Time: 2s" in result
+    assert "Cost:" not in result  # Cost should not be present
+
+    # Test with just tokens (no time or cost)
+    result = display_status_message(200, 100)
+    assert "Tokens: 200 sent / 100 recv" in result
+    assert "Time:" not in result
+    assert "Cost:" not in result
+
+
+def test_display_status_message_with_minutes() -> None:
+    """Test display_status_message with time in minutes."""
+    # Test with time in minutes format
+    result = display_status_message(1000, 500, 65, 0.0075)
+    assert "Tokens: 1,000 sent / 500 recv" in result
+    assert "Time: 1m 5s" in result
+    assert "Cost: $0.0075" in result
+
+    # Test with longer time
+    result = display_status_message(2000, 1000, 125, 0.0150)
+    assert "Tokens: 2,000 sent / 1,000 recv" in result
+    assert "Time: 2m 5s" in result
+    assert "Cost: $0.0150" in result
