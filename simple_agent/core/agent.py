@@ -150,7 +150,7 @@ class Agent:
                 if iteration == 0:
                     set_stage_message("Analyzing request...")
                 else:
-                    set_stage_message(f"Processing tools...")
+                    set_stage_message("Processing tools...")
 
                 # Send to LLM
                 response = self._send_llm_request(self.context)
