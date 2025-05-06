@@ -151,3 +151,47 @@ def test_get_message_content(client: LLMClient, mocker: MockerFixture) -> None:
     content, tool_calls = client.get_message_content(None)
     assert content is None
     assert tool_calls is None
+
+
+def test_get_token_counts(client: LLMClient) -> None:
+    """Test getting token counts and completion cost."""
+    # Initialize with known values
+    client.tokens_sent = 100
+    client.tokens_received = 50
+    client.completion_cost = 0.0025
+
+    tokens_sent, tokens_received, cost = client.get_token_counts()
+
+    assert tokens_sent == 100
+    assert tokens_received == 50
+    assert cost == 0.0025
+
+
+def test_cost_calculation(client: LLMClient, mocker: MockerFixture) -> None:
+    """Test that completion costs are calculated correctly."""
+    # Create a mock response with token usage information
+    mock_response = mocker.MagicMock()
+    mock_response.usage.prompt_tokens = 100
+    mock_response.usage.completion_tokens = 50
+
+    # Mock litellm.completion to return our mock response
+    mocker.patch("litellm.completion", return_value=mock_response)
+
+    # Mock litellm.cost_per_token to return known costs
+    mock_cost = mocker.patch("litellm.cost_per_token", return_value=(0.001, 0.0015))
+
+    # Send a completion request
+    messages = [{"role": "user", "content": "test message"}]
+    client.send_completion(messages)
+
+    # Verify cost_per_token was called with correct parameters
+    mock_cost.assert_called_once_with(
+        model=config.llm.model,
+        prompt_tokens=100,
+        completion_tokens=50,
+    )
+
+    # Verify token counters were updated
+    assert client.tokens_sent == 100
+    assert client.tokens_received == 50
+    assert client.completion_cost == 0.0025  # 0.001 + 0.0015

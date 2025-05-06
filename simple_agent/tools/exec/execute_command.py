@@ -1,13 +1,13 @@
 """Tool for executing shell commands."""
 
 import subprocess
-import sys
 from select import select
 
 from simple_agent.display import (
     display_command,
     display_warning,
     print_tool_call,
+    update_live_display,
 )
 from simple_agent.tools.registry import register
 
@@ -48,31 +48,52 @@ def execute_command(command: str) -> tuple[str, str, int]:
             if process.stdout in rlist and process.stdout is not None:
                 output = process.stdout.readline()
                 if output:
-                    sys.stderr.write(output)
-                    sys.stderr.flush()
+                    # Capture the output
                     stdout_capture.append(output)
+
+                    # Display the output in the live console if available, otherwise to stdout
+                    # Use update_live_display which handles the case when live_display is None
+                    update_live_display(f"[dim]{output.rstrip()}[/dim]")
 
             if process.stderr in rlist and process.stderr is not None:
                 output = process.stderr.readline()
                 if output:
-                    sys.stderr.write(output)
-                    sys.stderr.flush()
+                    # Capture the error
                     stderr_capture.append(output)
+
+                    # Display the error in the live console if available, otherwise to stderr
+                    # Use update_live_display which handles the case when live_display is None
+                    update_live_display(f"[red]{output.rstrip()}[/red]")
 
             # Check if the process has finished
             if process.poll() is not None:
                 # Read any remaining output
                 if process.stdout is not None:
                     for output in process.stdout:
-                        sys.stdout.write(output)
-                        sys.stdout.flush()
+                        # Capture the output
                         stdout_capture.append(output)
+
+                        # Display in live console or stdout using update_live_display
+                        if output.strip():
+                            update_live_display(f"[dim]{output.rstrip()}[/dim]")
 
                 if process.stderr is not None:
                     for output in process.stderr:
-                        sys.stderr.write(output)
-                        sys.stderr.flush()
+                        # Capture the error
                         stderr_capture.append(output)
+
+                        # Display in live console or stderr using update_live_display
+                        if output.strip():
+                            update_live_display(f"[red]{output.rstrip()}[/red]")
+
+                # Show completion status in the live console
+                status = (
+                    "[green]✓[/green]"
+                    if process.returncode == 0
+                    else f"[red]✗ (code: {process.returncode})[/red]"
+                )
+                update_live_display(f"[dim]Command completed: {status}[/dim]")
+
                 break
 
         stdout_result = "".join(stdout_capture)

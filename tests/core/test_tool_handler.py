@@ -36,7 +36,6 @@ class TestToolHandler:
     def test_init(self, handler: ToolHandler) -> None:
         """Test initialization."""
         # Check only that input_func is set correctly
-        # Note: console is now imported from display module, not an attribute of ToolHandler
         assert handler.input_func is input
 
     def test_format_value(self, handler: ToolHandler) -> None:

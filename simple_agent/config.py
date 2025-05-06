@@ -17,9 +17,7 @@ class LLMConfig(BaseModel):
         description="API key for the LLM service",
     )
     model: str = Field(
-        default_factory=lambda: os.environ.get(
-            "LLM_MODEL", "anthropic.claude-3-haiku-20240307"
-        ),
+        default_factory=lambda: os.environ.get("LLM_MODEL", "claude-3-haiku-20240307"),
         description="LLM model to use",
     )
 

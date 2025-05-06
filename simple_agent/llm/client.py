@@ -19,6 +19,11 @@ class LLMClient:
         """
         self.api_key = api_key or config.llm.api_key
 
+        # Initialize token counters
+        self.tokens_sent = 0
+        self.tokens_received = 0
+        self.completion_cost = 0.0
+
         # Configure LiteLLM
         litellm.drop_params = True  # Don't send unnecessary params
 
@@ -60,6 +65,19 @@ class LLMClient:
 
             # Call the LLM API
             response = litellm.completion(**params)
+
+            # Update token counters from response
+            self.tokens_sent += response.usage.prompt_tokens
+            self.tokens_received += response.usage.completion_tokens
+
+            # Calculate cost using litellm.completion_cost function
+            prompt_cost, completion_cost = litellm.cost_per_token(
+                model=config.llm.model,
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+            )
+            self.completion_cost += prompt_cost + completion_cost
+
             return response
         except Exception as e:
             display_error(f"API Error: {e}")
@@ -82,3 +100,11 @@ class LLMClient:
         tool_calls = getattr(message, "tool_calls", None)
 
         return content, tool_calls
+
+    def get_token_counts(self) -> tuple[int, int, float]:
+        """Get the current token counts and completion cost.
+
+        Returns:
+            Tuple of (tokens_sent, tokens_received, completion_cost)
+        """
+        return self.tokens_sent, self.tokens_received, self.completion_cost

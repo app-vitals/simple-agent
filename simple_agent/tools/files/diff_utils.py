@@ -5,16 +5,14 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from rich.syntax import Syntax
-
 from simple_agent.display import (
     clean_path,
-    console,
     display_info,
     display_warning,
     format_tool_args,
     get_confirmation,
 )
+from simple_agent.live_console import update_live_display
 
 
 def create_git_diff_view(file_path: str, old_content: str, new_content: str) -> str:
@@ -129,10 +127,25 @@ def show_git_diff_confirmation(
     """
     # Show the diff with syntax highlighting
     display_info(f"Changes for {tool_name}:")
-    console.print("\n")
-    syntax = Syntax(diff_content, "diff", theme="ansi_dark")
-    console.print(syntax)
-    console.print("\n")
+
+    # Update the live display with the diff content
+    update_live_display("")  # Add a blank line for spacing
+
+    # Format diff content with rich markup
+
+    # Use console directly to render the syntax in the live display
+    # We'll format the diff content as plain text for update_live_display
+    for line in diff_content.splitlines():
+        if line.startswith("+"):
+            update_live_display(f"[green]{line}[/green]")
+        elif line.startswith("-"):
+            update_live_display(f"[red]{line}[/red]")
+        elif line.startswith("@@"):
+            update_live_display(f"[cyan]{line}[/cyan]")
+        else:
+            update_live_display(line)
+
+    update_live_display("")  # Add a blank line for spacing
 
     # Format the tool arguments if they exist
     args_display = ""
@@ -147,7 +160,7 @@ def show_git_diff_confirmation(
         return confirmation.lower() in ["y", "yes"]
     else:
         # Use the standardized confirmation function from display module
-        return get_confirmation(f"<ansicyan>{tool_name}</ansicyan>{args_display}?")
+        return get_confirmation(f"[cyan]{tool_name}[/cyan]{args_display}?")
 
 
 def write_file_confirmation_handler(

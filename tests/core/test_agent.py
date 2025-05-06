@@ -26,7 +26,6 @@ def test_agent_init(agent: Agent) -> None:
     assert hasattr(agent, "llm_client")
     assert hasattr(agent, "tool_handler")
     assert hasattr(agent, "tools")
-    # Note: console is now imported from display module, not an attribute of Agent
 
 
 def test_agent_input_handler(agent: Agent, mocker: MockerFixture) -> None:
@@ -49,10 +48,6 @@ def test_agent_input_handler(agent: Agent, mocker: MockerFixture) -> None:
 
     # Verify tool_handler was updated with input_func
     assert agent.tool_handler.input_func == mock_input
-
-
-# We've covered EOF handling in test_agent_input_handler
-# and more thoroughly in the CLI tests, so this test is now redundant.
 
 
 def test_process_input_ai_request(agent: Agent, mocker: MockerFixture) -> None:
@@ -336,33 +331,6 @@ def test_process_llm_response_ask(agent: Agent, mocker: MockerFixture) -> None:
     assert agent.context[-1]["content"] == json_content
 
 
-def test_process_llm_response_continue(agent: Agent, mocker: MockerFixture) -> None:
-    """Test processing a JSON response with CONTINUE status."""
-    # Mock the _handle_ai_request method
-    agent._handle_ai_request = mocker.MagicMock()  # type: ignore
-
-    # Create a CONTINUE response
-    json_content = json.dumps(
-        {
-            "message": "Working on it",
-            "status": "CONTINUE",
-            "next_action": "I'll check the documentation next",
-        }
-    )
-
-    # Call the method
-    agent._process_llm_response(json_content, MagicMock())
-
-    # Verify that it called _handle_ai_request with the continuation prompt
-    agent._handle_ai_request.assert_called_once_with(  # type: ignore
-        "Please continue by I'll check the documentation next"
-    )
-
-    # Verify response was added to context
-    assert agent.context[-1]["role"] == "assistant"
-    assert agent.context[-1]["content"] == json_content
-
-
 def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -> None:
     """Test handling AI request with too many tool calls (max iterations reached)."""
     # Mock required components
@@ -499,3 +467,67 @@ def test_context_management() -> None:
 
     # Verify we kept only the 10 most recent messages
     assert len(agent.context) == 10
+
+
+def test_get_status_message(agent: Agent, mocker: MockerFixture) -> None:
+    """Test the _get_status_message method."""
+    # Mock the LLM client
+    agent.llm_client = mocker.MagicMock()
+
+    # Set up token counts and cost
+    mocker.patch.object(
+        agent.llm_client, "get_token_counts", return_value=(100, 50, 0.0025)
+    )
+
+    # Setup for elapsed time calculation
+    agent.request_start_time = 1000.0  # Set a fixed start time
+    mock_monotonic = mocker.patch(
+        "time.monotonic", return_value=1002.5
+    )  # 2.5 seconds later
+
+    # Mock display_status_message function
+    mock_display = mocker.patch(
+        "simple_agent.core.agent.display_status_message", return_value="Status message"
+    )
+
+    # Call the method
+    result = agent._get_status_message()
+
+    # Verify monotonic was called
+    mock_monotonic.assert_called_once()
+
+    # Verify result
+    assert result == "Status message"
+
+    # Verify display_status_message was called with correct arguments
+    mock_display.assert_called_once_with(100, 50, 2.5, 0.0025)
+
+
+def test_get_status_message_no_request_time(
+    agent: Agent, mocker: MockerFixture
+) -> None:
+    """Test _get_status_message when no request is in progress."""
+    # Mock the LLM client
+    agent.llm_client = mocker.MagicMock()
+
+    # Set up token counts and cost
+    mocker.patch.object(
+        agent.llm_client, "get_token_counts", return_value=(100, 50, 0.0025)
+    )
+
+    # Set request_start_time to None (no request in progress)
+    agent.request_start_time = None
+
+    # Mock display_status_message function
+    mock_display = mocker.patch(
+        "simple_agent.core.agent.display_status_message", return_value="Status message"
+    )
+
+    # Call the method
+    result = agent._get_status_message()
+
+    # Verify result
+    assert result == "Status message"
+
+    # Verify display_status_message was called with correct arguments (no elapsed time)
+    mock_display.assert_called_once_with(100, 50, None, 0.0025)

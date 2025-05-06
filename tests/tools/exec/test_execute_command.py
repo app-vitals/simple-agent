@@ -63,9 +63,10 @@ def test_execute_command_remaining_output(mocker: MockerFixture) -> None:
     # Mock Popen to return our mock process
     mocker.patch("subprocess.Popen", return_value=mock_process)
 
-    # Mock sys.stdout and sys.stderr
-    mock_sys_stdout = mocker.patch("sys.stdout.write")
-    mock_sys_stderr = mocker.patch("sys.stderr.write")
+    # Mock update_live_display
+    mock_update = mocker.patch(
+        "simple_agent.tools.exec.execute_command.update_live_display"
+    )
 
     # Call execute_command
     stdout, stderr, return_code = execute_command("test_command")
@@ -74,6 +75,17 @@ def test_execute_command_remaining_output(mocker: MockerFixture) -> None:
     assert "remaining stdout line" in stdout
     assert "remaining stderr line" in stderr
 
-    # Verify that the content was written to sys.stdout and sys.stderr
-    mock_sys_stdout.assert_called_with("remaining stdout line\n")
-    mock_sys_stderr.assert_called_with("remaining stderr line\n")
+    # Verify update_live_display was called with the appropriate content
+    assert mock_update.call_count >= 3  # At least for stdout, stderr and completion
+
+    # Verify that the content was sent to update_live_display
+    mock_update.assert_any_call("[dim]remaining stdout line[/dim]")
+    mock_update.assert_any_call("[red]remaining stderr line[/red]")
+
+    # We can't easily check the exact string for the completion status
+    # since the returncode may be dynamically mocked
+    # So we'll check that some completion message was sent
+    completion_calls = [
+        call for call in mock_update.call_args_list if "Command completed:" in str(call)
+    ]
+    assert len(completion_calls) > 0

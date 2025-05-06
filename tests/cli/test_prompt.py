@@ -540,17 +540,17 @@ def test_display_response(mocker: MockerFixture) -> None:
     # Reset mock
     mock_print.reset_mock()
 
-    # Test with CONTINUE status
+    # Test with ASK status (since CONTINUE doesn't exist in the enum)
     display_response(
         message="Working on your request",
-        status=AgentStatus.CONTINUE.value,
+        status=AgentStatus.ASK.value,
         next_action="I will check the documentation next",
     )
     # Should call print twice - once for message, once for next action
     assert mock_print.call_count == 2
     mock_print.assert_any_call("Working on your request")
     mock_print.assert_any_call(
-        "[bold blue]Next:[/bold blue] I will check the documentation next"
+        "[bold yellow]Question:[/bold yellow] I will check the documentation next"
     )
 
     # Reset mock
