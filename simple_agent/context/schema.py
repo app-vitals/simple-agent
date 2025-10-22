@@ -8,6 +8,14 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class ContextExtractionResponse(BaseModel):
+    """Response model for context extraction from LLM."""
+
+    facts: list[str] = Field(
+        default_factory=list, description="List of extracted facts"
+    )
+
+
 class ContextType(str, Enum):
     """Types of context entries."""
 

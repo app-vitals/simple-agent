@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from simple_agent.cli.prompt import CLI, CLIMode
+from simple_agent.context.extractor import ContextExtractor
 from simple_agent.core.schema import AgentResponse
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 from simple_agent.display import (
@@ -96,6 +97,7 @@ class Agent:
         self.tool_handler = ToolHandler()
         self.tools = get_tools_for_llm()
         self.request_start_time: float | None = None
+        self.context_extractor = ContextExtractor(llm_client=self.llm_client)
 
     def run(self, input_func: Callable[[str], str] | None = None) -> None:
         """Run the agent's main loop using prompt_toolkit.
@@ -188,6 +190,9 @@ class Agent:
                         self._process_llm_response(content, response)
                     else:
                         display_error("Empty response from LLM")
+
+                    # Extract context from this interaction
+                    self._extract_context()
                     return
 
                 # Handle tool calls
@@ -209,6 +214,18 @@ class Agent:
 
             # If we've reached the maximum iterations, warn the user
             display_warning("Maximum tool call iterations reached")
+
+        # Extract context from this interaction (after live context exits)
+        self._extract_context()
+
+    def _extract_context(self) -> None:
+        """Extract and store context from the recent interaction."""
+        try:
+            # Extract context from the conversation messages
+            self.context_extractor.extract_from_messages(self.context)
+        except Exception as e:
+            # Show warning but don't crash
+            display_warning(f"Context extraction failed: {e}")
 
     def _send_llm_request(self, messages: list[dict]) -> Any | None:
         """Send a request to the LLM.

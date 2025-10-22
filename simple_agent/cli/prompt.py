@@ -15,6 +15,7 @@ from prompt_toolkit.shortcuts import clear
 from prompt_toolkit.styles import Style
 
 from simple_agent.cli.completion import Completer
+from simple_agent.context import get_context_manager
 from simple_agent.display import (
     console,
     display_error,
@@ -133,10 +134,12 @@ The agent can:
 • Read and write files (when you ask it to)
 
 [bold]Commands:[/bold]
-• [green]/help[/green]:  Show this help message
-• [green]/clear[/green]: Clear the terminal screen
-• [green]/exit[/green]:  Exit the agent
-• [green]![/green]:      Run a shell command
+• [green]/help[/green]:          Show this help message
+• [green]/clear[/green]:         Clear the terminal screen
+• [green]/show-context[/green]:  View recent context
+• [green]/clear-context[/green]: Clear stored context
+• [green]/exit[/green]:          Exit the agent
+• [green]![/green]:              Run a shell command
 
 [bold]Input features:[/bold]
 • End a line with [green]\\ [/green]for aligned multi-line input
@@ -215,6 +218,40 @@ class CLI:
         """Display help information."""
         console.print(HELP_TEXT)
 
+    def show_context(self) -> None:
+        """Display current context."""
+        context_manager = get_context_manager()
+        entries = context_manager.get_context(max_age_hours=24, limit=50)
+
+        if not entries:
+            console.print("[dim]No recent context available.[/dim]")
+            return
+
+        console.print("\n[bold cyan]Recent Context (last 24 hours):[/bold cyan]\n")
+
+        # Group by type
+        by_type: dict[str, list[tuple[str, str]]] = {}
+        for entry in entries:
+            type_name = entry.type.value.replace("_", " ").title()
+            if type_name not in by_type:
+                by_type[type_name] = []
+            # Format timestamp
+            time_str = entry.timestamp.strftime("%H:%M")
+            by_type[type_name].append((time_str, entry.content))
+
+        # Display each type
+        for type_name, items in by_type.items():
+            console.print(f"[bold]{type_name}:[/bold]")
+            for time_str, content in items[:10]:  # Max 10 per type
+                console.print(f"  [dim]{time_str}[/dim] {content}")
+            console.print()
+
+    def clear_context(self) -> None:
+        """Clear all stored context."""
+        context_manager = get_context_manager()
+        count = context_manager.clear_context()
+        console.print(f"[green]Cleared {count} context entries.[/green]")
+
     def set_mode(self, mode: CLIMode) -> bool:
         """Set the current interaction mode.
 
@@ -240,15 +277,14 @@ class CLI:
         """Run the interactive prompt loop."""
         # Display welcome message with styling
         welcome_message = """
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃          🤖 Simple Agent           ┃
-┃                                    ┃
-┃ /help      for available commands  ┃
-┃ /clear     to clear the screen     ┃
-┃ /exit      to quit                 ┃
-┃ !          to run a shell command  ┃
-┃ \\ + Enter  to create a newline     ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃          🤖 Simple Agent              ┃
+┃                                        ┃
+┃ /help           for available commands ┃
+┃ /show-context   view recent context    ┃
+┃ /clear-context  reset context          ┃
+┃ /exit           to quit                ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
         # Using direct console.print since we want custom formatting for the welcome box
         console.print(f"[bold white]{welcome_message}[/bold white]")
@@ -274,6 +310,12 @@ class CLI:
                     continue
                 elif user_input.lower() == "/clear":
                     clear()
+                    continue
+                elif user_input.lower() == "/show-context":
+                    self.show_context()
+                    continue
+                elif user_input.lower() == "/clear-context":
+                    self.clear_context()
                     continue
                 elif user_input.startswith("/"):
                     # Handle unknown slash commands
