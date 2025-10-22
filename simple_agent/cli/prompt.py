@@ -13,6 +13,7 @@ from prompt_toolkit.key_binding.key_processor import KeyPressEvent
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.shortcuts import clear
 from prompt_toolkit.styles import Style
+from rich.padding import Padding
 
 from simple_agent.cli.completion import Completer
 from simple_agent.context import get_context_manager
@@ -215,7 +216,7 @@ class CLI:
 
     def show_help(self) -> None:
         """Display help information."""
-        console.print(HELP_TEXT)
+        console.print(Padding(HELP_TEXT, (0, 0, 0, 2)))
 
     def show_context(self) -> None:
         """Display current context."""
@@ -223,10 +224,17 @@ class CLI:
         entries = context_manager.get_context(max_age_hours=24, limit=50)
 
         if not entries:
-            console.print("[dim]No recent context available.[/dim]")
+            console.print(
+                Padding("[dim]No recent context available.[/dim]", (0, 0, 0, 2))
+            )
             return
 
-        console.print("\n[bold cyan]Recent Context (last 24 hours):[/bold cyan]\n")
+        console.print(
+            Padding(
+                "\n[bold cyan]Recent Context (last 24 hours):[/bold cyan]\n",
+                (0, 0, 0, 2),
+            )
+        )
 
         # Group by type
         by_type: dict[str, list[tuple[str, str]]] = {}
@@ -240,16 +248,20 @@ class CLI:
 
         # Display each type
         for type_name, items in by_type.items():
-            console.print(f"[bold]{type_name}:[/bold]")
+            console.print(Padding(f"[bold]{type_name}:[/bold]", (0, 0, 0, 2)))
             for time_str, content in items[:10]:  # Max 10 per type
-                console.print(f"  [dim]{time_str}[/dim] {content}")
+                console.print(
+                    Padding(f"  [dim]{time_str}[/dim] {content}", (0, 0, 0, 2))
+                )
             console.print()
 
     def clear_context(self) -> None:
         """Clear all stored context."""
         context_manager = get_context_manager()
         count = context_manager.clear_context()
-        console.print(f"[green]Cleared {count} context entries.[/green]")
+        console.print(
+            Padding(f"[green]Cleared {count} context entries.[/green]", (0, 0, 0, 2))
+        )
 
     def set_mode(self, mode: CLIMode) -> bool:
         """Set the current interaction mode.
@@ -287,7 +299,9 @@ class CLI:
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
         # Using direct console.print since we want custom formatting for the welcome box
-        console.print(f"[bold white]{welcome_message}[/bold white]")
+        console.print(
+            Padding(f"[bold white]{welcome_message}[/bold white]", (0, 0, 0, 2))
+        )
 
         while True:
             try:

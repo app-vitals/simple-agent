@@ -11,10 +11,10 @@ from simple_agent.cli.prompt import CLI, CLIMode
 from simple_agent.context.extractor import ContextExtractor
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 from simple_agent.display import (
-    console,
     display_error,
     display_status_message,
     display_warning,
+    print_with_padding,
 )
 from simple_agent.live_console import live_context, set_stage_message
 from simple_agent.llm.client import LLMClient
@@ -197,7 +197,8 @@ class Agent:
                     live.stop()
                     # Display the final response
                     if content:
-                        console.print(Markdown(content))
+                        # Print with padding and an extra line at the end
+                        print_with_padding(Markdown(content), extra_line=True)
                         # Add to context
                         self.context.append({"role": "assistant", "content": content})
                     else:
@@ -209,7 +210,9 @@ class Agent:
 
                 # Display any text content alongside tool calls
                 if content:
-                    console.print(Markdown(content), style="dim")
+                    print_with_padding(
+                        Markdown(content), style="dim", newline_before=True
+                    )
 
                 # Handle tool calls
                 # Add the assistant's response with tool calls to context

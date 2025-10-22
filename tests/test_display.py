@@ -167,12 +167,15 @@ def test_get_confirmation_explicit_no(mock_confirm: MagicMock) -> None:
 @patch("simple_agent.display.console.print")
 def test_display_exit(mock_print: MagicMock) -> None:
     """Test display_exit."""
+    from rich.padding import Padding
+
     display_exit("User interrupted")
 
-    # Should print exit message with formatting
-    mock_print.assert_called_once_with(
-        "[bold blue]Exiting:[/bold blue] User interrupted"
-    )
+    # Should print exit message with formatting and padding
+    mock_print.assert_called_once()
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    assert call_args.renderable == "[bold blue]Exiting:[/bold blue] User interrupted"
 
 
 @patch("simple_agent.display.update_live_display")

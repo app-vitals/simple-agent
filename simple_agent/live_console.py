@@ -12,7 +12,9 @@ from rich.live import Live
 from rich.panel import Panel
 
 # Regular expression pattern to identify status lines
-STATUS_LINE_PATTERN = re.compile(r"\[blue\].*?(Processing|Analyzing|Complete|step).*?\[/blue\]")
+STATUS_LINE_PATTERN = re.compile(
+    r"\[blue\].*?(Processing|Analyzing|Complete|step).*?\[/blue\]"
+)
 
 # Create a shared Console instance for all output
 console = Console()
@@ -43,9 +45,9 @@ def live_context(
     live = Live(
         Panel(
             "[blue]Processing...[/blue] • Starting",
-            title="",
-            border_style="blue",
             box=MINIMAL,
+            padding=(0, 1),
+            expand=False,
         ),
         console=console,
         refresh_per_second=8,  # Increase refresh rate
@@ -79,42 +81,42 @@ def live_context(
                                 if isinstance(content_text, str)
                                 else []
                             )
+                        else:
+                            lines = []
 
-                            # Filter out status lines
-                            filtered_lines = [
-                                line
-                                for line in lines
-                                if not STATUS_LINE_PATTERN.search(line)
-                            ]
+                        # Filter out status lines
+                        filtered_lines = [
+                            line
+                            for line in lines
+                            if not STATUS_LINE_PATTERN.search(line)
+                        ]
 
-                            # Filter out consecutive and trailing empty lines
-                            filtered_lines = _filter_empty_lines(filtered_lines)
+                        # Filter out consecutive and trailing empty lines
+                        filtered_lines = _filter_empty_lines(filtered_lines)
 
-                            # Format the status line
-                            status_line = (
-                                f"[blue]{current_stage}[/blue] • {current_status}"
+                        # Format the status line
+                        status_line = f"[blue]{current_stage}[/blue] • {current_status}"
+
+                        # Create final display content
+                        if filtered_lines:
+                            # Create new content list with empty line separator
+                            display_lines = filtered_lines + ["", status_line]
+                        else:
+                            # Just show the status line if there's no other content
+                            display_lines = [status_line]
+
+                        # Replace filtered_lines with the display lines that include status line
+                        filtered_lines = display_lines
+
+                        # Update the live display
+                        live_display.update(
+                            Panel(
+                                "\n".join(filtered_lines),
+                                box=MINIMAL,
+                                padding=(0, 1),
+                                expand=False,
                             )
-
-                            # Create final display content
-                            if filtered_lines:
-                                # Create new content list with empty line separator
-                                display_lines = filtered_lines + ["", status_line]
-                            else:
-                                # Just show the status line if there's no other content
-                                display_lines = [status_line]
-
-                            # Replace filtered_lines with the display lines that include status line
-                            filtered_lines = display_lines
-
-                            # Update the live display
-                            live_display.update(
-                                Panel(
-                                    "\n".join(filtered_lines),
-                                    title="",
-                                    border_style="blue",
-                                    box=MINIMAL,
-                                )
-                            )
+                        )
                     except Exception:
                         # Ignore any errors in the update thread
                         pass
@@ -240,9 +242,14 @@ def update_live_display(new_content: str) -> None:
     else:
         display_lines = filtered_lines
 
-    # Update the panel with filtered content
+    # Update the live display with filtered content
     live_display.update(
-        Panel("\n".join(display_lines), title="", border_style="blue", box=MINIMAL)
+        Panel(
+            "\n".join(display_lines),
+            box=MINIMAL,
+            padding=(0, 1),
+            expand=False,
+        )
     )
 
 

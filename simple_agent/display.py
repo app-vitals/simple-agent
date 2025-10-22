@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import Any
 
+from rich.console import RenderableType
+from rich.padding import Padding
 from rich.traceback import Traceback
 
 from simple_agent.live_console import (
@@ -10,6 +12,27 @@ from simple_agent.live_console import (
     live_confirmation,
     update_live_display,
 )
+
+
+def print_with_padding(
+    content: RenderableType,
+    extra_line: bool = False,
+    style: str | None = None,
+    newline_before: bool = False,
+) -> None:
+    """Print content with consistent left padding.
+
+    Args:
+        content: The content to print (string or Rich renderable)
+        extra_line: Whether to add an extra blank line after the content
+        style: Optional style to apply (e.g., "dim")
+        newline_before: Whether to add a blank line before the content
+    """
+    if newline_before:
+        console.print()
+    console.print(Padding(content, (0, 0, 0, 2)), style=style)
+    if extra_line:
+        console.print()
 
 
 def clean_path(path: str) -> str:
@@ -203,7 +226,7 @@ def display_exit(reason: str) -> None:
     Args:
         reason: The reason for exiting
     """
-    console.print(f"[bold blue]Exiting:[/bold blue] {reason}")
+    console.print(Padding(f"[bold blue]Exiting:[/bold blue] {reason}", (0, 0, 0, 2)))
 
 
 def display_status_message(
