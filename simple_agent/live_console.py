@@ -12,7 +12,7 @@ from rich.live import Live
 from rich.panel import Panel
 
 # Regular expression pattern to identify status lines
-STATUS_LINE_PATTERN = re.compile(r"\[blue\].*?(Processing|Analyzing|step).*?\[/blue\]")
+STATUS_LINE_PATTERN = re.compile(r"\[blue\].*?(Processing|Analyzing|Complete|step).*?\[/blue\]")
 
 # Create a shared Console instance for all output
 console = Console()
