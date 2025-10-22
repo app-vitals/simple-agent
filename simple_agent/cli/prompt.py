@@ -125,13 +125,15 @@ def setup_keybindings(cli: "CLI") -> KeyBindings:
 
 # Help text for the CLI
 HELP_TEXT = """
-[bold]Simple Agent[/bold] - An AI assistant that can help with tasks
+[bold]Simple Agent[/bold] - Command line execution efficiency assistant
 
-Just type your questions or requests naturally.
-The agent can:
-• Answer questions
-• Run commands (when you ask it to)
-• Read and write files (when you ask it to)
+Built on Unix philosophy principles to help optimize your daily execution.
+
+[bold]What I can help with:[/bold]
+• Execute shell commands and scripts
+• Read and analyze files
+• Search for files and patterns
+• Remember context from your conversations
 
 [bold]Commands:[/bold]
 • [green]/help[/green]:          Show this help message
@@ -139,16 +141,13 @@ The agent can:
 • [green]/show-context[/green]:  View recent context
 • [green]/clear-context[/green]: Clear stored context
 • [green]/exit[/green]:          Exit the agent
-• [green]![/green]:              Run a shell command
+• [green]![/green]:              Run a shell command directly
 
 [bold]Input features:[/bold]
 • End a line with [green]\\ [/green]for aligned multi-line input
 • Use Tab key for command auto-completion
 
-[bold]Response types:[/bold]
-• [blue]Next action[/blue]: The agent knows what to do next and will continue automatically
-• [yellow]Question[/yellow]: The agent needs more information from you
-• Normal response: The task is complete
+Just type your requests naturally and I'll help you get things done.
 """
 
 
@@ -281,6 +280,7 @@ class CLI:
 ┃          🤖 Simple Agent              ┃
 ┃                                        ┃
 ┃ /help           for available commands ┃
+┃ /clear          clear the screen       ┃
 ┃ /show-context   view recent context    ┃
 ┃ /clear-context  reset context          ┃
 ┃ /exit           to quit                ┃
