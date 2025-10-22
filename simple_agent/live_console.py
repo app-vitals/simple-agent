@@ -141,6 +141,9 @@ def live_confirmation(message: str, default: bool = True) -> bool:
     live_display.transient = True
     live_display.stop()
 
+    # Add a newline before the confirmation prompt
+    console.print()
+
     try:
         # Use a colored prompt for the confirmation
         # This uses ANSI escape codes for color since we're outside of Rich's rendering
@@ -185,14 +188,15 @@ def live_confirmation(message: str, default: bool = True) -> bool:
             f"[bold yellow]Confirm[/bold yellow] {message} [bold]→ {choice_text}[/bold]"
         )
 
-        # Resume the live display
-        live_display.transient = False
-        live_display.start()
-
-        # Print the confirmation result with padding
+        # Print the confirmation result with padding BEFORE restarting live display
         from rich.padding import Padding
 
         console.print(Padding(confirmation_result, (0, 0, 0, 2)))
+        console.print()
+
+        # Resume the live display after printing
+        live_display.transient = False
+        live_display.start()
 
         return result
     except Exception as e:

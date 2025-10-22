@@ -169,8 +169,8 @@ def test_live_confirmation_with_live_display(
     mock_input.assert_called_once()
     assert result is True
 
-    # Verify console.print was called with confirmation result
-    mock_console_print.assert_called_once()
+    # Verify console.print was called 3 times (newline before, confirmation result, newline after)
+    assert mock_console_print.call_count == 3
 
 
 def test_live_confirmation_exception_handling(mocker: MockerFixture) -> None:

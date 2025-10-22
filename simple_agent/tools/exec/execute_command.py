@@ -21,6 +21,7 @@ def execute_command(command: str) -> tuple[str, str, int]:
     """
 
     print_tool_call("execute_command", command=command)
+    console.print()
     display_command(command)
 
     # For capturing the complete output to return

@@ -128,6 +128,7 @@ def show_git_diff_confirmation(
         True if user confirms, False if denied
     """
     # Show the diff with syntax highlighting
+    console.print()
     display_info(f"Changes for {tool_name}:")
 
     # Print the diff content with padding
@@ -143,8 +144,6 @@ def show_git_diff_confirmation(
             console.print(Padding(f"[cyan]{line}[/cyan]", (0, 0, 0, 2)))
         else:
             console.print(Padding(line, (0, 0, 0, 2)))
-
-    console.print()  # Add a blank line for spacing
 
     # Format the tool arguments if they exist
     args_display = ""
