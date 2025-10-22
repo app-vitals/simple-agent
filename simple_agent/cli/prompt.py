@@ -125,15 +125,15 @@ def setup_keybindings(cli: "CLI") -> KeyBindings:
 
 # Help text for the CLI
 HELP_TEXT = """
-[bold]Simple Agent[/bold] - Command line execution efficiency assistant
+[bold]Simple Agent[/bold] - Your execution efficiency assistant
 
-Built on Unix philosophy principles to help optimize your daily execution.
+Help you execute on short-term tasks and long-term goals.
 
-[bold]What I can help with:[/bold]
-• Execute shell commands and scripts
-• Read and analyze files
-• Search for files and patterns
-• Remember context from your conversations
+[bold]How I help:[/bold]
+• Answer "what should I work on next?" based on your context
+• Remember your projects, files, and working patterns
+• Track progress toward long-term goals
+• Suggest high-priority actions that fit your available time
 
 [bold]Commands:[/bold]
 • [green]/help[/green]:          Show this help message
@@ -147,7 +147,7 @@ Built on Unix philosophy principles to help optimize your daily execution.
 • End a line with [green]\\ [/green]for aligned multi-line input
 • Use Tab key for command auto-completion
 
-Just type your requests naturally and I'll help you get things done.
+Just ask me what to work on next, and I'll help you prioritize.
 """
 
 

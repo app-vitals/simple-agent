@@ -32,24 +32,22 @@ class CommandCompleter(PTKCompleter):
         self, document: Document, complete_event: CompleteEvent
     ) -> Iterable[Completion]:
         """Get completions for the current document."""
-        word = document.get_word_before_cursor()
-        text_before_cursor = document.text_before_cursor
+        text_before_cursor = document.text_before_cursor.strip()
 
         # Only show slash commands if we're at the beginning of the line
-        # or if we've just typed a slash as the first character
-        is_first_position = (
-            not text_before_cursor.strip() or text_before_cursor.strip() == "/"
-        )
+        # and the text starts with /
+        if not text_before_cursor.startswith("/"):
+            return
 
         for command, description in self.commands.items():
-            # Only suggest slash commands if they're appropriate for the position
-            if command.startswith("/") and not is_first_position:
+            # Skip non-slash commands
+            if not command.startswith("/"):
                 continue
 
-            if command.startswith(word):
+            if command.startswith(text_before_cursor):
                 yield Completion(
                     command,
-                    start_position=-len(word),
+                    start_position=-len(text_before_cursor),
                     display=command,
                     display_meta=description,
                 )
@@ -75,18 +73,22 @@ class FilePathCompleter(PTKCompleter):
     ) -> Iterable[Completion]:
         """Get file path completions for the current document."""
         text = document.text_before_cursor
+        # Get the last word (after any spaces) to handle file paths in commands
         text = text.split(" ")[-1]
         sub_document = Document(text)
 
-        # Only activate for paths that start with ./, ~/, or /
-        if (
+        # Only activate for file paths (not commands starting with /)
+        # Trigger on: ./, ~/, or absolute paths like /usr/local
+        # Don't trigger on single / at start of line (that's for commands)
+        is_file_path = (
             text.startswith("./")
             or text.startswith("~/")
-            or text.startswith("/")
-            or "./" in text
-            or "~/" in text
-            or "/" in text
-        ):
+            or (
+                text.startswith("/") and "/" in text[1:]
+            )  # /path/to/file but not just /
+        )
+
+        if is_file_path:
             yield from self.path_completer.get_completions(sub_document, complete_event)
 
 
