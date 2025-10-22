@@ -12,8 +12,6 @@ from simple_agent.cli.prompt import (
     CLIMode,
     setup_keybindings,
 )
-from simple_agent.core.schema import AgentStatus
-from simple_agent.display import display_response
 
 
 @pytest.fixture
@@ -522,49 +520,3 @@ def test_shell_mode_in_interactive_loop(
     assert "Command:" in args
     assert "$ ls" in args
     assert "Output:" in args
-
-
-def test_display_response(mocker: MockerFixture) -> None:
-    """Test the display_response function."""
-    # Mock console.print to verify output
-    mock_print = mocker.patch("simple_agent.display.console.print")
-
-    # Test with COMPLETE status
-    display_response(
-        message="This is a test message",
-        status=AgentStatus.COMPLETE.value,
-        next_action=None,
-    )
-    mock_print.assert_called_with("This is a test message")
-
-    # Reset mock
-    mock_print.reset_mock()
-
-    # Test with ASK status (since CONTINUE doesn't exist in the enum)
-    display_response(
-        message="Working on your request",
-        status=AgentStatus.ASK.value,
-        next_action="I will check the documentation next",
-    )
-    # Should call print twice - once for message, once for next action
-    assert mock_print.call_count == 2
-    mock_print.assert_any_call("Working on your request")
-    mock_print.assert_any_call(
-        "[bold yellow]Question:[/bold yellow] I will check the documentation next"
-    )
-
-    # Reset mock
-    mock_print.reset_mock()
-
-    # Test with ASK status
-    display_response(
-        message="I found multiple options",
-        status=AgentStatus.ASK.value,
-        next_action="Which option do you prefer?",
-    )
-    # Should call print twice - once for message, once for question
-    assert mock_print.call_count == 2
-    mock_print.assert_any_call("I found multiple options")
-    mock_print.assert_any_call(
-        "[bold yellow]Question:[/bold yellow] Which option do you prefer?"
-    )

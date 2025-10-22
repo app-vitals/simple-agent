@@ -31,14 +31,14 @@ class LLMClient:
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
-        response_format: Any | None = None,
+        tool_choice: dict[str, Any] | str | None = None,
     ) -> Any | None:
         """Send a completion request to the LLM API.
 
         Args:
             messages: List of conversation messages in chat format
             tools: Optional list of tool definitions
-            response_format: Optional response format specification
+            tool_choice: Optional tool choice (auto, required, or specific tool)
 
         Returns:
             The raw API response object, or None if an error occurs
@@ -49,7 +49,7 @@ class LLMClient:
 
         try:
             # Call the model using config
-            params = {
+            params: dict[str, Any] = {
                 "model": config.llm.model,
                 "messages": messages,
                 "api_key": self.api_key,
@@ -58,10 +58,11 @@ class LLMClient:
             # Add optional parameters if specified
             if tools:
                 params["tools"] = tools
-                params["tool_choice"] = "auto"
-
-            if response_format:
-                params["response_format"] = response_format
+                # Use provided tool_choice or default to auto
+                if tool_choice:
+                    params["tool_choice"] = tool_choice
+                else:
+                    params["tool_choice"] = "auto"
 
             # Call the LLM API
             response = litellm.completion(**params)

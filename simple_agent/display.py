@@ -106,20 +106,6 @@ def format_tool_args(*args: object, **kwargs: object) -> str:
     return ", ".join(all_args)
 
 
-def display_response(message: str, status: str, next_action: str | None = None) -> None:
-    """Display formatted agent response based on status.
-
-    Args:
-        message: Main response message
-        status: Response status (COMPLETE, ASK)
-        next_action: Optional follow-up action or question
-    """
-    console.print(message)
-
-    if status == "ASK" and next_action:
-        console.print(f"[bold yellow]Question:[/bold yellow] {next_action}")
-
-
 def display_error(message: str, err: Exception | None = None) -> None:
     """Display formatted error message with optional exception details.
 

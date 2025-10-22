@@ -15,7 +15,6 @@ from simple_agent.display import (
     display_error,
     display_exit,
     display_info,
-    display_response,
     display_status_message,
     display_warning,
     format_tool_args,
@@ -28,47 +27,6 @@ from simple_agent.display import (
 def test_display_console_created() -> None:
     """Test that the console is created as a Rich Console instance."""
     assert isinstance(console, Console)
-
-
-@patch("simple_agent.display.console.print")
-def test_display_response_complete(mock_print: MagicMock) -> None:
-    """Test display_response with COMPLETE status."""
-    display_response("Test message", "COMPLETE", None)
-
-    # Should just print the message with no extra formatting
-    mock_print.assert_called_once_with("Test message")
-
-
-@patch("simple_agent.display.console.print")
-def test_display_response_complete_with_action(mock_print: MagicMock) -> None:
-    """Test display_response with COMPLETE status and unused action."""
-    display_response("Working on it", "COMPLETE", "This action will be ignored")
-
-    # Should only print the message when status is COMPLETE (ignores action)
-    assert mock_print.call_count == 1
-    mock_print.assert_called_once_with("Working on it")
-
-
-@patch("simple_agent.display.console.print")
-def test_display_response_ask(mock_print: MagicMock) -> None:
-    """Test display_response with ASK status."""
-    display_response("Found multiple options", "ASK", "Which option do you prefer?")
-
-    # Should print message and question separately
-    assert mock_print.call_count == 2
-    mock_print.assert_any_call("Found multiple options")
-    mock_print.assert_any_call(
-        "[bold yellow]Question:[/bold yellow] Which option do you prefer?"
-    )
-
-
-@patch("simple_agent.display.console.print")
-def test_display_response_no_next_action(mock_print: MagicMock) -> None:
-    """Test display_response with CONTINUE status but no next_action."""
-    display_response("Working on it", "CONTINUE", None)
-
-    # Should only print the message
-    mock_print.assert_called_once_with("Working on it")
 
 
 @patch("simple_agent.display.update_live_display")

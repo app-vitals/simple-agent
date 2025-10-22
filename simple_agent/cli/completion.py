@@ -23,6 +23,8 @@ class CommandCompleter(PTKCompleter):
             "/help": "Show help information",
             "/exit": "Exit the application",
             "/clear": "Clear the screen",
+            "/show-context": "Show recent context entries",
+            "/clear-context": "Clear all context entries",
             "\\ + Enter": "to create a new line",
         }
 

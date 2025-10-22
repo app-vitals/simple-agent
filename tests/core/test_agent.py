@@ -1,15 +1,12 @@
 """Tests for the agent module."""
 
 import contextlib
-import json
-from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 
 from simple_agent.cli.prompt import CLIMode
 from simple_agent.core.agent import Agent
-from simple_agent.core.schema import AgentResponse
 
 
 @pytest.fixture
@@ -100,9 +97,6 @@ def test_handle_ai_request(agent: Agent, mocker: MockerFixture) -> None:
     # Mock get_message_content to return content without tool calls
     agent.llm_client.get_message_content.return_value = ("Test response", None)  # type: ignore
 
-    # Mock _process_llm_response
-    agent._process_llm_response = mocker.MagicMock()  # type: ignore
-
     # Call the method
     agent._handle_ai_request("Hello")
 
@@ -112,8 +106,8 @@ def test_handle_ai_request(agent: Agent, mocker: MockerFixture) -> None:
     # Verify LLM request was sent
     agent._send_llm_request.assert_called_once_with(agent.context)  # type: ignore
 
-    # Verify response was processed
-    agent._process_llm_response.assert_called_once_with("Test response", mock_response)  # type: ignore
+    # Verify response was added to context
+    assert {"role": "assistant", "content": "Test response"} in agent.context
 
 
 def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) -> None:
@@ -122,7 +116,6 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
     agent.console = mocker.MagicMock()  # type: ignore
     agent.llm_client = mocker.MagicMock()  # type: ignore
     agent.tool_handler = mocker.MagicMock()  # type: ignore
-    agent._process_llm_response = mocker.MagicMock()  # type: ignore
 
     # Create a mock cli
     mock_cli = mocker.MagicMock()
@@ -170,8 +163,8 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
     assert args[0] == mock_tool_calls  # First arg should be tool_calls
     assert isinstance(args[1], list)  # Second arg should be a list (context)
 
-    # Verify final response was processed
-    agent._process_llm_response.assert_called_once_with("Final result", mock_followup_response)  # type: ignore
+    # Verify final response was added to context
+    assert {"role": "assistant", "content": "Final result"} in agent.context
 
 
 def test_handle_ai_request_with_nested_tool_calls(
@@ -182,7 +175,6 @@ def test_handle_ai_request_with_nested_tool_calls(
     agent.console = mocker.MagicMock()  # type: ignore
     agent.llm_client = mocker.MagicMock()  # type: ignore
     agent.tool_handler = mocker.MagicMock()  # type: ignore
-    agent._process_llm_response = mocker.MagicMock()  # type: ignore
 
     # Create a mock cli
     mock_cli = mocker.MagicMock()
@@ -233,8 +225,8 @@ def test_handle_ai_request_with_nested_tool_calls(
     # Verify tool_handler was called twice
     assert agent.tool_handler.process_tool_calls.call_count == 2  # type: ignore
 
-    # Verify final response was processed
-    agent._process_llm_response.assert_called_once_with("Final result", mock_final_response)  # type: ignore
+    # Verify final response was added to context
+    assert {"role": "assistant", "content": "Final result"} in agent.context
 
 
 def test_handle_ai_request_error(agent: Agent, mocker: MockerFixture) -> None:
@@ -278,57 +270,7 @@ def test_send_llm_request(agent: Agent, mocker: MockerFixture) -> None:
     agent.llm_client.send_completion.assert_called_once_with(  # type: ignore
         messages=messages,
         tools=agent.tools,
-        response_format=AgentResponse,
     )
-
-
-def test_process_llm_response_json(agent: Agent, mocker: MockerFixture) -> None:
-    """Test processing a valid JSON response."""
-    # Create a valid JSON response
-    json_content = json.dumps(
-        {
-            "message": "This is a test message",
-            "status": "COMPLETE",
-            "next_action": None,
-        }
-    )
-
-    # Call the method
-    agent._process_llm_response(json_content, MagicMock())
-
-    # Verify response was added to context
-    assert agent.context[-1]["role"] == "assistant"
-    assert agent.context[-1]["content"] == json_content
-
-
-def test_process_llm_response_empty_content(
-    agent: Agent, mocker: MockerFixture
-) -> None:
-    """Test processing an empty response."""
-    # Call the method with empty content
-    agent._process_llm_response("", MagicMock())
-
-    # Verify context wasn't updated
-    assert len(agent.context) == 1  # Only system prompt should be there
-
-
-def test_process_llm_response_ask(agent: Agent, mocker: MockerFixture) -> None:
-    """Test processing a JSON response with ASK status."""
-    # Create an ASK response
-    json_content = json.dumps(
-        {
-            "message": "This is a test message",
-            "status": "ASK",
-            "next_action": "What would you like me to do?",
-        }
-    )
-
-    # Call the method
-    agent._process_llm_response(json_content, MagicMock())
-
-    # Verify response was added to context
-    assert agent.context[-1]["role"] == "assistant"
-    assert agent.context[-1]["content"] == json_content
 
 
 def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -> None:
@@ -336,7 +278,6 @@ def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -
     # Mock required components
     agent.llm_client = mocker.MagicMock()  # type: ignore
     agent.tool_handler = mocker.MagicMock()  # type: ignore
-    agent._process_llm_response = mocker.MagicMock()  # type: ignore
 
     # Create a mock cli
     mock_cli = mocker.MagicMock()
@@ -371,9 +312,6 @@ def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -
     # Verify tool_handler was called 20 times
     assert agent.tool_handler.process_tool_calls.call_count == 20  # type: ignore
 
-    # Verify _process_llm_response was never called since we never got a complete response
-    agent._process_llm_response.assert_not_called()  # type: ignore
-
 
 def test_handle_ai_request_with_keyboard_interrupt_propagation(
     agent: Agent, mocker: MockerFixture
@@ -395,19 +333,6 @@ def test_handle_ai_request_with_keyboard_interrupt_propagation(
     agent._handle_ai_request.assert_called_once_with("Hello")  # type: ignore
 
     # The test passes if we reach this point without raising an exception
-
-
-def test_process_llm_response_invalid_json(agent: Agent, mocker: MockerFixture) -> None:
-    """Test processing an invalid JSON response."""
-    # Create an invalid JSON response
-    invalid_json = "This is not JSON"
-
-    # Call the method
-    agent._process_llm_response(invalid_json, MagicMock())
-
-    # Verify response was added to context
-    assert agent.context[-1]["role"] == "assistant"
-    assert agent.context[-1]["content"] == invalid_json
 
 
 def test_context_management() -> None:
@@ -612,7 +537,6 @@ Task:
     mock_response = mocker.MagicMock()
     agent._send_llm_request = mocker.MagicMock(return_value=mock_response)  # type: ignore
     agent.llm_client.get_message_content.return_value = ("Test response", None)  # type: ignore
-    agent._process_llm_response = mocker.MagicMock()  # type: ignore
 
     # Set initial context
     agent.context = [{"role": "system", "content": "Initial prompt"}]

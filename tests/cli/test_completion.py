@@ -15,6 +15,8 @@ def test_command_completer() -> None:
     assert "/help" in completer.commands
     assert "/exit" in completer.commands
     assert "/clear" in completer.commands
+    assert "/show-context" in completer.commands
+    assert "/clear-context" in completer.commands
     assert "\\ + Enter" in completer.commands
 
     # Test getting completions
@@ -23,7 +25,7 @@ def test_command_completer() -> None:
     doc.text_before_cursor = "/"
 
     completions = list(completer.get_completions(doc, MagicMock()))
-    assert len(completions) == 3  # /help, /exit, /clear
+    assert len(completions) == 5  # /help, /exit, /clear, /show-context, /clear-context
 
     # Test that slash commands only appear at the beginning of a line
     doc.text_before_cursor = "some text /"

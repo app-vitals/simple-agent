@@ -91,24 +91,49 @@ class ContextExtractor:
             tool_results=tool_results,
         )
 
-        # Call LLM to extract facts
+        # Define the extraction tool
+        extraction_tool = {
+            "type": "function",
+            "function": {
+                "name": "extract_context",
+                "description": "Extract context facts from the interaction",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "facts": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of extracted context facts",
+                        }
+                    },
+                    "required": ["facts"],
+                },
+            },
+        }
+
+        # Call LLM with forced tool choice
         response = self.llm_client.send_completion(
             messages=[
                 {"role": "system", "content": CONTEXT_EXTRACTION_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            response_format=ContextExtractionResponse,
+            tools=[extraction_tool],
+            tool_choice={"type": "function", "function": {"name": "extract_context"}},
         )
 
         if not response:
             return []
 
-        # Parse the response using the response model
-        content = response.choices[0].message.content
-        if not content:
+        # Extract tool call from response
+        message = response.choices[0].message
+        if not hasattr(message, "tool_calls") or not message.tool_calls:
             return []
 
-        result = ContextExtractionResponse.model_validate_json(content)
+        # Parse the tool call arguments using Pydantic
+        tool_call = message.tool_calls[0]
+        result = ContextExtractionResponse.model_validate_json(
+            tool_call.function.arguments
+        )
         facts: list[str] = result.facts
 
         # Store each fact in context manager

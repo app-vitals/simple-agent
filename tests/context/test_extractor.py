@@ -21,12 +21,13 @@ def temp_storage(tmp_path: Path) -> Path:
 def mock_llm_client() -> Mock:
     """Create a mock LLM client."""
     mock = Mock()
-    # Mock a successful response
+    # Mock a successful response with tool call
     mock_response = Mock()
     mock_response.choices = [Mock()]
-    mock_response.choices[0].message.content = (
-        '{"facts": ["Test fact 1", "Test fact 2"]}'
-    )
+    mock_response.choices[0].message.tool_calls = [Mock()]
+    mock_response.choices[0].message.tool_calls[
+        0
+    ].function.arguments = '{"facts": ["Test fact 1", "Test fact 2"]}'
     mock.send_completion.return_value = mock_response
     return mock
 
@@ -79,9 +80,9 @@ def test_extract_and_store_empty_response(
     extractor: ContextExtractor, mock_llm_client: Mock
 ) -> None:
     """Test handling empty facts response."""
-    mock_llm_client.send_completion.return_value.choices[0].message.content = (
-        '{"facts": []}'
-    )
+    mock_llm_client.send_completion.return_value.choices[0].message.tool_calls[
+        0
+    ].function.arguments = '{"facts": []}'
 
     facts = extractor.extract_and_store(user_message="Hello")
 
