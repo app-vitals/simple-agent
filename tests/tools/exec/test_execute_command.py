@@ -44,9 +44,12 @@ def test_execute_command_remaining_output(mocker: MockerFixture) -> None:
 
     This test specifically targets reading from stdout and stderr after a process has finished.
     """
+    from rich.padding import Padding
+
     # Create a mock process
     mock_process = MagicMock()
     mock_process.poll.return_value = 0  # Process has finished
+    mock_process.returncode = 0
 
     # Create mock stdout and stderr with content
     mock_stdout = StringIO("remaining stdout line\n")
@@ -63,10 +66,8 @@ def test_execute_command_remaining_output(mocker: MockerFixture) -> None:
     # Mock Popen to return our mock process
     mocker.patch("subprocess.Popen", return_value=mock_process)
 
-    # Mock update_live_display
-    mock_update = mocker.patch(
-        "simple_agent.tools.exec.execute_command.update_live_display"
-    )
+    # Mock console.print
+    mock_print = mocker.patch("simple_agent.tools.exec.execute_command.console.print")
 
     # Call execute_command
     stdout, stderr, return_code = execute_command("test_command")
@@ -75,17 +76,34 @@ def test_execute_command_remaining_output(mocker: MockerFixture) -> None:
     assert "remaining stdout line" in stdout
     assert "remaining stderr line" in stderr
 
-    # Verify update_live_display was called with the appropriate content
-    assert mock_update.call_count >= 3  # At least for stdout, stderr and completion
+    # Verify console.print was called with the appropriate content
+    assert mock_print.call_count >= 3  # At least for stdout, stderr and completion
 
-    # Verify that the content was sent to update_live_display
-    mock_update.assert_any_call("[dim]remaining stdout line[/dim]")
-    mock_update.assert_any_call("[red]remaining stderr line[/red]")
-
-    # We can't easily check the exact string for the completion status
-    # since the returncode may be dynamically mocked
-    # So we'll check that some completion message was sent
-    completion_calls = [
-        call for call in mock_update.call_args_list if "Command completed:" in str(call)
+    # Find calls with Padding objects and check their content
+    padding_calls = [
+        call
+        for call in mock_print.call_args_list
+        if len(call[0]) > 0 and isinstance(call[0][0], Padding)
     ]
-    assert len(completion_calls) > 0
+
+    # Verify stdout was printed
+    stdout_found = any(
+        "[dim]remaining stdout line[/dim]" in str(call[0][0].renderable)
+        for call in padding_calls
+    )
+    assert stdout_found, "Expected stdout line not found in console.print calls"
+
+    # Verify stderr was printed
+    stderr_found = any(
+        "[red]remaining stderr line[/red]" in str(call[0][0].renderable)
+        for call in padding_calls
+    )
+    assert stderr_found, "Expected stderr line not found in console.print calls"
+
+    # Verify completion message was printed
+    completion_found = any(
+        "Command completed:" in str(call[0][0].renderable) for call in padding_calls
+    )
+    assert (
+        completion_found
+    ), "Expected completion message not found in console.print calls"

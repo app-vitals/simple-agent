@@ -3,12 +3,10 @@
 import subprocess
 from select import select
 
-from simple_agent.display import (
-    display_command,
-    display_warning,
-    print_tool_call,
-    update_live_display,
-)
+from rich.padding import Padding
+
+from simple_agent.display import display_command, display_warning, print_tool_call
+from simple_agent.live_console import console
 from simple_agent.tools.registry import register
 
 
@@ -51,9 +49,10 @@ def execute_command(command: str) -> tuple[str, str, int]:
                     # Capture the output
                     stdout_capture.append(output)
 
-                    # Display the output in the live console if available, otherwise to stdout
-                    # Use update_live_display which handles the case when live_display is None
-                    update_live_display(f"[dim]{output.rstrip()}[/dim]")
+                    # Display the output with padding
+                    console.print(
+                        Padding(f"[dim]{output.rstrip()}[/dim]", (0, 0, 0, 2))
+                    )
 
             if process.stderr in rlist and process.stderr is not None:
                 output = process.stderr.readline()
@@ -61,9 +60,10 @@ def execute_command(command: str) -> tuple[str, str, int]:
                     # Capture the error
                     stderr_capture.append(output)
 
-                    # Display the error in the live console if available, otherwise to stderr
-                    # Use update_live_display which handles the case when live_display is None
-                    update_live_display(f"[red]{output.rstrip()}[/red]")
+                    # Display the error with padding
+                    console.print(
+                        Padding(f"[red]{output.rstrip()}[/red]", (0, 0, 0, 2))
+                    )
 
             # Check if the process has finished
             if process.poll() is not None:
@@ -73,26 +73,32 @@ def execute_command(command: str) -> tuple[str, str, int]:
                         # Capture the output
                         stdout_capture.append(output)
 
-                        # Display in live console or stdout using update_live_display
+                        # Display with padding
                         if output.strip():
-                            update_live_display(f"[dim]{output.rstrip()}[/dim]")
+                            console.print(
+                                Padding(f"[dim]{output.rstrip()}[/dim]", (0, 0, 0, 2))
+                            )
 
                 if process.stderr is not None:
                     for output in process.stderr:
                         # Capture the error
                         stderr_capture.append(output)
 
-                        # Display in live console or stderr using update_live_display
+                        # Display with padding
                         if output.strip():
-                            update_live_display(f"[red]{output.rstrip()}[/red]")
+                            console.print(
+                                Padding(f"[red]{output.rstrip()}[/red]", (0, 0, 0, 2))
+                            )
 
-                # Show completion status in the live console
+                # Show completion status
                 status = (
                     "[green]✓[/green]"
                     if process.returncode == 0
                     else f"[red]✗ (code: {process.returncode})[/red]"
                 )
-                update_live_display(f"[dim]Command completed: {status}[/dim]")
+                console.print(
+                    Padding(f"[dim]Command completed: {status}[/dim]", (0, 0, 0, 2))
+                )
 
                 break
 

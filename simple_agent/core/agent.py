@@ -191,7 +191,6 @@ class Agent:
                 if not tool_calls:
                     # Update stage to show completion
                     set_stage_message("Complete")
-                    # Sleep to ensure the stage update is rendered
                     time.sleep(0.12)
                     # Exit the live context before displaying response
                     live.stop()

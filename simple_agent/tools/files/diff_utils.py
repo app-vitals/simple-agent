@@ -5,6 +5,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from rich.padding import Padding
+
 from simple_agent.display import (
     clean_path,
     display_info,
@@ -12,7 +14,7 @@ from simple_agent.display import (
     format_tool_args,
     get_confirmation,
 )
-from simple_agent.live_console import update_live_display
+from simple_agent.live_console import console
 
 
 def create_git_diff_view(file_path: str, old_content: str, new_content: str) -> str:
@@ -128,24 +130,21 @@ def show_git_diff_confirmation(
     # Show the diff with syntax highlighting
     display_info(f"Changes for {tool_name}:")
 
-    # Update the live display with the diff content
-    update_live_display("")  # Add a blank line for spacing
+    # Print the diff content with padding
+    console.print()  # Add a blank line for spacing
 
     # Format diff content with rich markup
-
-    # Use console directly to render the syntax in the live display
-    # We'll format the diff content as plain text for update_live_display
     for line in diff_content.splitlines():
         if line.startswith("+"):
-            update_live_display(f"[green]{line}[/green]")
+            console.print(Padding(f"[green]{line}[/green]", (0, 0, 0, 2)))
         elif line.startswith("-"):
-            update_live_display(f"[red]{line}[/red]")
+            console.print(Padding(f"[red]{line}[/red]", (0, 0, 0, 2)))
         elif line.startswith("@@"):
-            update_live_display(f"[cyan]{line}[/cyan]")
+            console.print(Padding(f"[cyan]{line}[/cyan]", (0, 0, 0, 2)))
         else:
-            update_live_display(line)
+            console.print(Padding(line, (0, 0, 0, 2)))
 
-    update_live_display("")  # Add a blank line for spacing
+    console.print()  # Add a blank line for spacing
 
     # Format the tool arguments if they exist
     args_display = ""

@@ -29,79 +29,114 @@ def test_display_console_created() -> None:
     assert isinstance(console, Console)
 
 
-@patch("simple_agent.display.update_live_display")
-def test_display_error_without_exception(mock_update: MagicMock) -> None:
+@patch("simple_agent.display.console.print")
+def test_display_error_without_exception(mock_print: MagicMock) -> None:
     """Test display_error without an exception."""
+    from rich.padding import Padding
+
     display_error("Something went wrong")
 
-    # Should call update_live_display with error message formatting
-    mock_update.assert_called_once_with(
-        "[bold red]Error:[/bold red] Something went wrong"
-    )
+    # Should call console.print with error message formatting
+    mock_print.assert_called_once()
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    assert call_args.renderable == "[bold red]Error:[/bold red] Something went wrong"
 
 
-@patch("simple_agent.display.update_live_display")
 @patch("simple_agent.live_console.live_display", None)  # Simulate no live display
 @patch("simple_agent.display.console.print")
-def test_display_error_with_exception(
-    mock_print: MagicMock, mock_update: MagicMock
-) -> None:
+def test_display_error_with_exception(mock_print: MagicMock) -> None:
     """Test display_error with an exception."""
+    from rich.padding import Padding
+
     error = ValueError("Invalid value")
 
     display_error("Something went wrong", error)
 
-    # Should update live display with error message
-    mock_update.assert_any_call("[bold red]Error:[/bold red] Something went wrong")
+    # Should print error message and traceback
+    assert mock_print.call_count == 2
 
-    # Should print traceback when no live display is available
-    assert mock_print.call_count == 1
-    assert isinstance(mock_print.call_args[0][0], Traceback)
+    # First call should be the error message with padding
+    first_call_args = mock_print.call_args_list[0][0][0]
+    assert isinstance(first_call_args, Padding)
+    assert (
+        first_call_args.renderable == "[bold red]Error:[/bold red] Something went wrong"
+    )
+
+    # Second call should be the traceback
+    second_call_args = mock_print.call_args_list[1][0][0]
+    assert isinstance(second_call_args, Traceback)
 
 
-@patch("simple_agent.display.update_live_display")
-def test_display_warning_without_exception(mock_update: MagicMock) -> None:
+@patch("simple_agent.display.console.print")
+def test_display_warning_without_exception(mock_print: MagicMock) -> None:
     """Test display_warning without an exception."""
+    from rich.padding import Padding
+
     display_warning("Potentially problematic")
 
-    # Should update live display with warning message
-    mock_update.assert_called_once_with(
-        "[bold yellow]Warning:[/bold yellow] Potentially problematic"
+    # Should print warning message
+    mock_print.assert_called_once()
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    assert (
+        call_args.renderable
+        == "[bold yellow]Warning:[/bold yellow] Potentially problematic"
     )
 
 
-@patch("simple_agent.display.update_live_display")
-def test_display_warning_with_exception(mock_update: MagicMock) -> None:
+@patch("simple_agent.display.console.print")
+def test_display_warning_with_exception(mock_print: MagicMock) -> None:
     """Test display_warning with an exception."""
+    from rich.padding import Padding
+
     error = ValueError("Invalid value")
 
     display_warning("Potentially problematic", error)
 
-    # Should update live display with warning message and error details
-    assert mock_update.call_count == 2
-    mock_update.assert_any_call(
-        "[bold yellow]Warning:[/bold yellow] Potentially problematic"
+    # Should print warning message and error details
+    assert mock_print.call_count == 2
+    first_call_args = mock_print.call_args_list[0][0][0]
+    assert isinstance(first_call_args, Padding)
+    assert (
+        first_call_args.renderable
+        == "[bold yellow]Warning:[/bold yellow] Potentially problematic"
     )
 
-    mock_update.assert_any_call("[dim]Exception: ValueError 'Invalid value'[/dim]")
+    second_call_args = mock_print.call_args_list[1][0][0]
+    assert isinstance(second_call_args, Padding)
+    assert (
+        second_call_args.renderable
+        == "[dim]Exception: ValueError 'Invalid value'[/dim]"
+    )
 
 
-@patch("simple_agent.display.update_live_display")
-def test_display_info(mock_update: MagicMock) -> None:
+@patch("simple_agent.display.console.print")
+def test_display_info(mock_print: MagicMock) -> None:
     """Test display_info."""
+    from rich.padding import Padding
+
     display_info("Processing request")
 
-    # Should update live display with info message
-    mock_update.assert_called_once_with("Processing request")
+    # Should print info message
+    mock_print.assert_called_once()
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    assert call_args.renderable == "Processing request"
 
 
-@patch("simple_agent.display.update_live_display")
-def test_display_command(mock_update: MagicMock) -> None:
+@patch("simple_agent.display.console.print")
+def test_display_command(mock_print: MagicMock) -> None:
     """Test display_command."""
+    from rich.padding import Padding
+
     display_command("ls -la")
 
-    # Should update live display with formatted command
-    mock_update.assert_called_once_with("[cyan]$ ls -la[/cyan]")
+    # Should print formatted command
+    mock_print.assert_called_once()
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    assert call_args.renderable == "[cyan]$ ls -la[/cyan]"
 
 
 @patch("simple_agent.display.live_confirmation")
@@ -178,33 +213,41 @@ def test_display_exit(mock_print: MagicMock) -> None:
     assert call_args.renderable == "[bold blue]Exiting:[/bold blue] User interrupted"
 
 
-@patch("simple_agent.display.update_live_display")
-def test_print_tool_call(mock_update: MagicMock) -> None:
+@patch("simple_agent.display.console.print")
+def test_print_tool_call(mock_print: MagicMock) -> None:
     """Test print_tool_call."""
+    from rich.padding import Padding
+
     # Test with simple arguments
     print_tool_call("read_file", file_path="example.txt")
 
-    # Should update live display with formatted tool call
-    call_args = mock_update.call_args[0][0]
-    assert "[cyan]read_file[/cyan]" in call_args
-    assert "file_path='example.txt'" in call_args
+    # Should print formatted tool call
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    renderable_str = str(call_args.renderable)
+    assert "[cyan]read_file[/cyan]" in renderable_str
+    assert "file_path='example.txt'" in renderable_str
 
     # Test with multiple arguments
-    mock_update.reset_mock()
+    mock_print.reset_mock()
     print_tool_call("write_file", file_path="example.txt", content="Example content")
 
-    call_args = mock_update.call_args[0][0]
-    assert "[cyan]write_file[/cyan]" in call_args
-    assert "file_path='example.txt'" in call_args
-    assert "content='Example content'" in call_args
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    renderable_str = str(call_args.renderable)
+    assert "[cyan]write_file[/cyan]" in renderable_str
+    assert "file_path='example.txt'" in renderable_str
+    assert "content='Example content'" in renderable_str
 
 
 def test_print_tool_call_with_mocked_format(
     monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture
 ) -> None:
     """Test print_tool_call with mocked format_tool_args."""
-    # Mock update_live_display
-    mock_update = mocker.patch("simple_agent.display.update_live_display")
+    from rich.padding import Padding
+
+    # Mock console.print
+    mock_print = mocker.patch("simple_agent.display.console.print")
 
     # Mock format_tool_args to return a known string for testing
     mock_format_args = mocker.patch("simple_agent.display.format_tool_args")
@@ -217,13 +260,14 @@ def test_print_tool_call_with_mocked_format(
     # Test with simple tool call using keyword arguments
     print_tool_call("test_tool", arg1="value1", arg2="value2")
 
-    # Verify that update_live_display was called with a string containing both the tool name and formatted args
-    mock_update.assert_called_once()
-    call_args = mock_update.call_args[0][0]
-    assert "test_tool" in call_args
+    # Verify that console.print was called with a Padding containing the tool name and formatted args
+    mock_print.assert_called_once()
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    assert "test_tool" in str(call_args.renderable)
 
     # Reset mocks
-    mock_update.reset_mock()
+    mock_print.reset_mock()
     mock_format_args.reset_mock()
 
     # Set up mock for second test
@@ -231,33 +275,42 @@ def test_print_tool_call_with_mocked_format(
 
     # Test with file_paths keyword argument
     print_tool_call("read_files", file_paths=[str(test_cwd / "file.txt")])
-    mock_update.assert_called_once()
-    call_args = mock_update.call_args[0][0]
-    assert "read_files" in call_args
+    mock_print.assert_called_once()
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    assert "read_files" in str(call_args.renderable)
 
 
-@patch("simple_agent.display.update_live_display")
-def test_print_tool_result(mock_update: MagicMock) -> None:
+@patch("simple_agent.display.console.print")
+def test_print_tool_result(mock_print: MagicMock) -> None:
     """Test print_tool_result with message."""
+    from rich.padding import Padding
+
     # Test with success message
     print_tool_result("write_file", "File successfully written")
-    call_args = mock_update.call_args[0][0]
-    assert "[cyan]write_file[/cyan]" in call_args
-    assert "File successfully written" in call_args
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    renderable_str = str(call_args.renderable)
+    assert "[cyan]write_file[/cyan]" in renderable_str
+    assert "File successfully written" in renderable_str
 
     # Test with error message
-    mock_update.reset_mock()
+    mock_print.reset_mock()
     print_tool_result("write_file", "Failed to write file")
-    call_args = mock_update.call_args[0][0]
-    assert "[cyan]write_file[/cyan]" in call_args
-    assert "Failed to write file" in call_args
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    renderable_str = str(call_args.renderable)
+    assert "[cyan]write_file[/cyan]" in renderable_str
+    assert "Failed to write file" in renderable_str
 
     # Test with file count message
-    mock_update.reset_mock()
+    mock_print.reset_mock()
     print_tool_result("glob_files", "Found 2 files matching pattern '*.txt'")
-    call_args = mock_update.call_args[0][0]
-    assert "[cyan]glob_files[/cyan]" in call_args
-    assert "Found 2 files matching pattern '*.txt'" in call_args
+    call_args = mock_print.call_args[0][0]
+    assert isinstance(call_args, Padding)
+    renderable_str = str(call_args.renderable)
+    assert "[cyan]glob_files[/cyan]" in renderable_str
+    assert "Found 2 files matching pattern '*.txt'" in renderable_str
 
 
 def test_clean_path(monkeypatch: pytest.MonkeyPatch) -> None:

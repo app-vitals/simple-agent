@@ -7,11 +7,7 @@ from rich.console import RenderableType
 from rich.padding import Padding
 from rich.traceback import Traceback
 
-from simple_agent.live_console import (
-    console,
-    live_confirmation,
-    update_live_display,
-)
+from simple_agent.live_console import console, live_confirmation
 
 
 def print_with_padding(
@@ -139,8 +135,8 @@ def display_error(message: str, err: Exception | None = None) -> None:
     # Format the error message
     error_message = f"[bold red]Error:[/bold red] {message}"
 
-    # Update the live display if available
-    update_live_display(error_message)
+    # Print with padding
+    console.print(Padding(error_message, (0, 0, 0, 2)))
 
     # Display exception details if provided
     if err:
@@ -164,7 +160,7 @@ def display_error(message: str, err: Exception | None = None) -> None:
         else:
             # For live display, show a simplified error message
             err_summary = f"[dim]Exception: {type(err).__name__} - {str(err)}[/dim]"
-            update_live_display(err_summary)
+            console.print(Padding(err_summary, (0, 0, 0, 2)))
 
 
 def display_warning(message: str, err: Exception | None = None) -> None:
@@ -177,13 +173,13 @@ def display_warning(message: str, err: Exception | None = None) -> None:
     # Format the warning message
     warning_message = f"[bold yellow]Warning:[/bold yellow] {message}"
 
-    # Update the live display if available
-    update_live_display(warning_message)
+    # Print with padding
+    console.print(Padding(warning_message, (0, 0, 0, 2)))
 
     # Display exception details if provided (with different styling from errors)
     if err:
         err_summary = f"[dim]Exception: {type(err).__name__} '{err}'[/dim]"
-        update_live_display(err_summary)
+        console.print(Padding(err_summary, (0, 0, 0, 2)))
 
 
 def display_info(message: str) -> None:
@@ -192,8 +188,8 @@ def display_info(message: str) -> None:
     Args:
         message: Information text to display
     """
-    # Update the live display if available
-    update_live_display(message)
+    # Print with padding
+    console.print(Padding(message, (0, 0, 0, 2)))
 
 
 def display_command(command: str) -> None:
@@ -203,7 +199,7 @@ def display_command(command: str) -> None:
         command: The shell command to be displayed
     """
     command_message = f"[cyan]$ {command}[/cyan]"
-    update_live_display(command_message)
+    console.print(Padding(command_message, (0, 0, 0, 2)))
 
 
 def get_confirmation(message: str, default: bool = True) -> bool:
@@ -277,8 +273,8 @@ def print_tool_call(tool_name: str, **args: Any) -> None:
     args_str = format_tool_args(**args)
     tool_call_message = f"[cyan]{tool_name}[/cyan]({args_str})"
 
-    # Update the display with the tool call message
-    update_live_display(tool_call_message)
+    # Print with padding
+    console.print(Padding(tool_call_message, (0, 0, 0, 2)))
 
 
 def print_tool_result(tool_name: str, message: str) -> None:
@@ -290,5 +286,5 @@ def print_tool_result(tool_name: str, message: str) -> None:
     """
     tool_result_message = f"[cyan]{tool_name}[/cyan]: {message}"
 
-    # Update the display with the tool result message
-    update_live_display(tool_result_message)
+    # Print with padding
+    console.print(Padding(tool_result_message, (0, 0, 0, 2)))

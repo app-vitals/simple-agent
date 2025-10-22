@@ -1,7 +1,6 @@
 """Live console display for dynamic updates during processing."""
 
 import contextlib
-import re
 import threading
 import time
 from collections.abc import Callable, Generator
@@ -10,11 +9,6 @@ from rich.box import MINIMAL
 from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
-
-# Regular expression pattern to identify status lines
-STATUS_LINE_PATTERN = re.compile(
-    r"\[blue\].*?(Processing|Analyzing|Complete|step).*?\[/blue\]"
-)
 
 # Create a shared Console instance for all output
 console = Console()
@@ -41,7 +35,7 @@ def live_context(
     """
     global live_display
 
-    # Create a new Live display
+    # Create a new Live display with just the status line
     live = Live(
         Panel(
             "[blue]Processing...[/blue] • Starting",
@@ -50,7 +44,7 @@ def live_context(
             expand=False,
         ),
         console=console,
-        refresh_per_second=8,  # Increase refresh rate
+        refresh_per_second=8,
         transient=False,
     )
 
@@ -67,51 +61,13 @@ def live_context(
                         # Get current status from callback
                         current_status = status_callback()
 
-                        # Get current content
-                        current_content = live_display.renderable
-                        if isinstance(current_content, Panel):
-                            # Extract content as lines
-                            content_text = (
-                                current_content.renderable
-                                if hasattr(current_content, "renderable")
-                                else ""
-                            )
-                            lines = (
-                                content_text.split("\n")
-                                if isinstance(content_text, str)
-                                else []
-                            )
-                        else:
-                            lines = []
-
-                        # Filter out status lines
-                        filtered_lines = [
-                            line
-                            for line in lines
-                            if not STATUS_LINE_PATTERN.search(line)
-                        ]
-
-                        # Filter out consecutive and trailing empty lines
-                        filtered_lines = _filter_empty_lines(filtered_lines)
-
                         # Format the status line
                         status_line = f"[blue]{current_stage}[/blue] • {current_status}"
 
-                        # Create final display content
-                        if filtered_lines:
-                            # Create new content list with empty line separator
-                            display_lines = filtered_lines + ["", status_line]
-                        else:
-                            # Just show the status line if there's no other content
-                            display_lines = [status_line]
-
-                        # Replace filtered_lines with the display lines that include status line
-                        filtered_lines = display_lines
-
-                        # Update the live display
+                        # Update the live display with just the status
                         live_display.update(
                             Panel(
-                                "\n".join(filtered_lines),
+                                status_line,
                                 box=MINIMAL,
                                 padding=(0, 1),
                                 expand=False,
@@ -160,99 +116,6 @@ def set_stage_message(message: str) -> None:
     current_stage = message
 
 
-def _filter_empty_lines(lines: list[str]) -> list[str]:
-    """Filter consecutive empty lines, keeping only single empty lines.
-    Also removes empty lines at the end of the content.
-
-    Args:
-        lines: List of lines to filter
-
-    Returns:
-        Filtered list with no consecutive empty lines and no trailing empty lines
-    """
-    if not lines:
-        return lines
-
-    # First pass: filter consecutive empty lines
-    result = []
-    prev_empty = False
-
-    for line in lines:
-        is_empty = not line.strip()
-        if not (is_empty and prev_empty):  # Skip if current and previous are empty
-            result.append(line)
-        prev_empty = is_empty
-
-    # Second pass: remove trailing empty lines
-    while result and not result[-1].strip():
-        result.pop()
-
-    return result
-
-
-def update_live_display(new_content: str) -> None:
-    """Update the live display with new content.
-
-    This is a helper function that handles all the common logic for adding content
-    to the live display, including filtering out status lines and managing empty lines.
-
-    Args:
-        new_content: The new content to add to the display
-    """
-    if live_display is None:
-        # No live display available, fallback to console
-        # Use highlight=False to preserve any ANSI color codes in the content
-        console.print(new_content, highlight=False)
-        return
-
-    current_content = live_display.renderable
-    if not isinstance(current_content, Panel):
-        return
-
-    # Extract existing content as lines
-    lines = (
-        current_content.renderable.split("\n")
-        if isinstance(current_content.renderable, str)
-        else []
-    )
-
-    # Separate status lines from content
-    status_line = None
-    for line in lines:
-        if STATUS_LINE_PATTERN.search(line):
-            status_line = line
-            break
-
-    # Filter out any status lines using the regex pattern
-    filtered_lines = [line for line in lines if not STATUS_LINE_PATTERN.search(line)]
-
-    # Filter out consecutive empty lines
-    filtered_lines = _filter_empty_lines(filtered_lines)
-
-    # Add the new content
-    filtered_lines.append(new_content)
-
-    # Add the status line back if it exists
-    if status_line:
-        # Make sure we have an empty line before the status if there's other content
-        if filtered_lines:
-            display_lines = filtered_lines + ["", status_line]
-        else:
-            display_lines = [status_line]
-    else:
-        display_lines = filtered_lines
-
-    # Update the live display with filtered content
-    live_display.update(
-        Panel(
-            "\n".join(display_lines),
-            box=MINIMAL,
-            padding=(0, 1),
-            expand=False,
-        )
-    )
-
-
 def live_confirmation(message: str, default: bool = True) -> bool:
     """Get user confirmation within the live display.
 
@@ -266,7 +129,7 @@ def live_confirmation(message: str, default: bool = True) -> bool:
     if live_display is None:
         # Fallback to standard input if live display isn't available
         default_text = "Y/n" if default else "y/N"
-        response = input(f"Confirm {message} [{default_text}] ")
+        response = input(f"  Confirm {message} [{default_text}] ")
         if not response:
             return default
         return response.lower() in ["y", "yes"]
@@ -275,6 +138,7 @@ def live_confirmation(message: str, default: bool = True) -> bool:
     # and it's not used elsewhere in the function
 
     # Temporarily stop the live display to get user input
+    live_display.transient = True
     live_display.stop()
 
     try:
@@ -309,21 +173,26 @@ def live_confirmation(message: str, default: bool = True) -> bool:
         formatted_message = formatted_message.replace("[/italic]", reset_text)
 
         response = input(
-            f"{yellow_text}Confirm{reset_text} {formatted_message} {yellow_text}[{default_text}]{reset_text} "
+            f"  {yellow_text}Confirm{reset_text} {formatted_message} {yellow_text}[{default_text}]{reset_text} "
         )
 
         # Process the response using a ternary operator
         result = default if not response else response.lower() in ["y", "yes"]
 
-        # Display the user's choice in the live context
+        # Display the user's choice
         choice_text = "Yes" if result else "No"
         confirmation_result = (
             f"[bold yellow]Confirm[/bold yellow] {message} [bold]→ {choice_text}[/bold]"
         )
 
-        # Resume the live display and update it with the confirmation result
+        # Resume the live display
+        live_display.transient = False
         live_display.start()
-        update_live_display(confirmation_result)
+
+        # Print the confirmation result with padding
+        from rich.padding import Padding
+
+        console.print(Padding(confirmation_result, (0, 0, 0, 2)))
 
         return result
     except Exception as e:
