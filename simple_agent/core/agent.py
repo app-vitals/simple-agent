@@ -91,13 +91,42 @@ class Agent:
 
     def __init__(self) -> None:
         """Initialize the agent."""
-        # Initialize context with system prompt
-        self.context: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
         self.llm_client = LLMClient()
         self.tool_handler = ToolHandler()
         self.tools = get_tools_for_llm()
         self.request_start_time: float | None = None
         self.context_extractor = ContextExtractor(llm_client=self.llm_client)
+
+        # Initialize context with system prompt (will be updated dynamically)
+        self.context: list[dict] = [
+            {"role": "system", "content": self._build_system_prompt()}
+        ]
+
+    def _build_system_prompt(self) -> str:
+        """Build the system prompt with current context injected.
+
+        Returns:
+            System prompt with recent context included
+        """
+        # Start with base prompt
+        prompt = SYSTEM_PROMPT
+
+        # Get recent context summary
+        context_summary = self.context_extractor.get_recent_context_summary(
+            max_age_hours=24
+        )
+
+        # Only inject context if there is some
+        if context_summary and "No recent context available" not in context_summary:
+            # Add a section with current context
+            prompt += f"\n\n## Current Context\n\n{context_summary}\n\n"
+            prompt += """Use this context to provide more relevant and personalized assistance:
+- When asked "what should I work on next?", reference this context
+- Consider time constraints from calendar entries
+- Be aware of current tasks and projects
+- Suggest next steps that align with recent work patterns"""
+
+        return prompt
 
     def run(self, input_func: Callable[[str], str] | None = None) -> None:
         """Run the agent's main loop using prompt_toolkit.
@@ -151,6 +180,9 @@ class Agent:
         Args:
             message: The user's message
         """
+        # Refresh system prompt with latest context
+        self.context[0] = {"role": "system", "content": self._build_system_prompt()}
+
         # Update context with user message
         self.context.append({"role": "user", "content": message})
         if self.cli.mode != CLIMode.NORMAL:

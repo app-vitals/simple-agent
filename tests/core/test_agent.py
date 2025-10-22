@@ -137,8 +137,8 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
 
     mock_followup_response = mocker.MagicMock()
 
-    # Set up test context for simplicity
-    agent.context = []
+    # Set up test context with system prompt (realistic)
+    agent.context = [{"role": "system", "content": "Test system prompt"}]
 
     # Mock the processed messages after tool execution
     processed_messages = [{"role": "user", "content": "Hello"}]
@@ -199,8 +199,8 @@ def test_handle_ai_request_with_nested_tool_calls(
     mock_response2.choices = [mocker.MagicMock()]
     mock_final_response = mocker.MagicMock()
 
-    # Set up test context for simplicity
-    agent.context = []
+    # Set up test context with system prompt (realistic)
+    agent.context = [{"role": "system", "content": "Test system prompt"}]
 
     # Mock the processed messages after tool executions
     processed_messages1 = [{"role": "user", "content": "First tool result"}]
@@ -349,8 +349,8 @@ def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -
     mock_response = mocker.MagicMock()
     mock_response.choices = [mocker.MagicMock()]
 
-    # Set up test context
-    agent.context = []
+    # Set up test context with system prompt (realistic)
+    agent.context = [{"role": "system", "content": "Test system prompt"}]
 
     # Mock the processed messages after tool execution
     processed_messages = [{"role": "user", "content": "Tool result"}]
@@ -531,3 +531,98 @@ def test_get_status_message_no_request_time(
 
     # Verify display_status_message was called with correct arguments (no elapsed time)
     mock_display.assert_called_once_with(100, 50, None, 0.0025)
+
+
+def test_build_system_prompt_no_context(agent: Agent, mocker: MockerFixture) -> None:
+    """Test building system prompt when no context is available."""
+    # Mock the context extractor to return no context
+    mock_extractor = mocker.MagicMock()
+    mock_extractor.get_recent_context_summary.return_value = (
+        "No recent context available."
+    )
+    agent.context_extractor = mock_extractor
+
+    # Build the system prompt
+    prompt = agent._build_system_prompt()
+
+    # Verify it contains the base prompt
+    assert "Unix philosophy" in prompt
+
+    # Verify it does NOT contain context section
+    assert "## Current Context" not in prompt
+
+    # Verify extractor was called
+    mock_extractor.get_recent_context_summary.assert_called_once_with(max_age_hours=24)
+
+
+def test_build_system_prompt_with_context(agent: Agent, mocker: MockerFixture) -> None:
+    """Test building system prompt with context available."""
+    # Mock the context extractor to return some context
+    mock_extractor = mocker.MagicMock()
+    mock_extractor.get_recent_context_summary.return_value = """Recent Context:
+
+Task:
+  - Working on API refactor PR #234
+
+File:
+  - Edited src/api/routes.py"""
+    agent.context_extractor = mock_extractor
+
+    # Build the system prompt
+    prompt = agent._build_system_prompt()
+
+    # Verify it contains the base prompt
+    assert "Unix philosophy" in prompt
+
+    # Verify it contains context section
+    assert "## Current Context" in prompt
+    assert "Working on API refactor PR #234" in prompt
+    assert "Edited src/api/routes.py" in prompt
+
+    # Verify it contains context-aware instructions
+    assert "what should I work on next?" in prompt
+    assert "Consider time constraints from calendar entries" in prompt
+
+    # Verify extractor was called
+    mock_extractor.get_recent_context_summary.assert_called_once_with(max_age_hours=24)
+
+
+def test_handle_ai_request_refreshes_system_prompt(
+    agent: Agent, mocker: MockerFixture
+) -> None:
+    """Test that _handle_ai_request refreshes the system prompt with latest context."""
+    # Mock dependencies
+    agent.llm_client = mocker.MagicMock()  # type: ignore
+    agent.tool_handler = mocker.MagicMock()  # type: ignore
+
+    # Create a mock cli
+    mock_cli = mocker.MagicMock()
+    type(mock_cli).mode = mocker.PropertyMock(return_value=CLIMode.NORMAL)
+    agent.cli = mock_cli
+
+    # Mock the context extractor to return different context
+    mock_extractor = mocker.MagicMock()
+    mock_extractor.get_recent_context_summary.return_value = """Recent Context:
+
+Task:
+  - New task from context"""
+    agent.context_extractor = mock_extractor
+
+    # Create a mock response with no tool calls
+    mock_response = mocker.MagicMock()
+    agent._send_llm_request = mocker.MagicMock(return_value=mock_response)  # type: ignore
+    agent.llm_client.get_message_content.return_value = ("Test response", None)  # type: ignore
+    agent._process_llm_response = mocker.MagicMock()  # type: ignore
+
+    # Set initial context
+    agent.context = [{"role": "system", "content": "Initial prompt"}]
+
+    # Call the method
+    agent._handle_ai_request("Hello")
+
+    # Verify system prompt was refreshed (first message in context)
+    assert agent.context[0]["role"] == "system"
+    assert "New task from context" in agent.context[0]["content"]
+
+    # Verify _build_system_prompt was indirectly called via get_recent_context_summary
+    mock_extractor.get_recent_context_summary.assert_called()
