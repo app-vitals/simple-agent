@@ -10,100 +10,65 @@ Implement the minimal viable transformation from Simple Agent to Execution Effic
 
 ---
 
-## Phase 1: Foundation (Current Focus)
+## Phase 1: Foundation
 
-### Step 1: Context System Foundation
+### ✅ Step 1: Context System Foundation (COMPLETED)
 
-**Goal:** Create a simple context gathering and storage system.
+Built a disk-based context storage system with automatic cleanup.
 
-**Tasks:**
-1. Create `simple_agent/context/` directory structure:
-   - `manager.py` - Context manager for storing/retrieving context
-   - `sources/` - Directory for integration modules
-   - `schema.py` - Data models for context entries
+**What we built:**
+- Context manager with JSON persistence at `~/.simple-agent/context.json`
+- Context types: MANUAL, FILE, CALENDAR, TASK, TIME_TRACKING, GOAL
+- Auto-cleanup of entries older than 7 days
+- Full test coverage (13 tests)
 
-2. Implement basic context storage:
-   - JSON file storage at `~/.simple-agent/context.json`
-   - Context entry model: `{id, type, source, content, timestamp, metadata}`
-   - Methods: `add_context()`, `get_context()`, `clear_context()`
-   - Auto-cleanup: Remove entries older than 7 days
-   - Persists across sessions for multi-day context building
+### ✅ Step 2: Dynamic Context Extraction (COMPLETED)
 
-3. Add file context gathering (leverage existing tools):
-   - Recent files read/written become context automatically
-   - Store file paths and summaries in context
+Instead of manual context input, we built **automatic LLM-powered context extraction**.
 
-**Success Criteria:**
-- Can add context entries
-- Can retrieve all context
-- File operations automatically contribute to context
+**What we built:**
+- Context extraction prompt inspired by mem0
+- Extracts facts from user messages and tool calls automatically
+- Runs after each agent interaction
+- Slash commands: `/show-context`, `/clear-context`
+- 20 new tests, 91.65% coverage
 
-**Files to Create:**
-- `/simple_agent/context/__init__.py`
-- `/simple_agent/context/manager.py`
-- `/simple_agent/context/schema.py`
-- `/simple_agent/context/sources/__init__.py`
+**This is better than the original plan** because:
+- No manual effort required
+- Context builds automatically as you work
+- Smarter extraction (understands client/project/task relationships)
 
-### Step 2: Manual Context Input
+### Step 3: Inject Context into System Prompt
 
-**Goal:** Allow user to manually add context via commands.
+**Goal:** Make context available to the agent for all responses by including it in the system prompt.
+
+**Approach:** Instead of a separate tool, automatically inject recent context into the system prompt so the agent always has full awareness of the user's current work context.
 
 **Tasks:**
-1. Add new slash command: `/context <text>`
-   - Adds user-provided context to context manager
-   - Example: `/context working on webhook retry system`
-   - Example: `/context sprint ends Friday`
+1. Create context formatter:
+   - Function to format recent context for system prompt
+   - Keep it concise (last 24 hours, max 10 items per type)
+   - Group by type for readability
 
-2. Add context display command: `/show-context`
-   - Pretty-prints current context
-   - Shows type, source, timestamp for each entry
+2. Update system prompt dynamically:
+   - Inject context into system prompt on each request
+   - Only include if context exists (avoid empty sections)
+   - Format as bullet points for clarity
 
-3. Add clear context command: `/clear-context`
-   - Resets context store
-   - Useful for switching projects/focus areas
+3. Add context-aware instructions:
+   - Guide agent to use context for recommendations
+   - Encourage proactive suggestions based on context
+   - Examples of how to reference context in responses
 
 **Success Criteria:**
-- User can add arbitrary context
-- User can view all stored context
-- User can clear context when needed
+- User asks "what should I work on next?" → agent uses context to respond
+- Agent references recent files/tasks in responses naturally
+- Context helps with all responses, not just planning questions
+- No extra tool calls needed (context is always available)
 
 **Files to Modify:**
-- `/simple_agent/cli/prompt.py` - Add command handlers
-
-### Step 3: "What's Next" Tool
-
-**Goal:** Create a tool that uses context to recommend next actions.
-
-**Tasks:**
-1. Create new tool: `recommend_next_action`
-   - Tool in `/simple_agent/tools/planning/recommend_next.py`
-   - Inputs: None (uses context manager)
-   - Outputs: Structured recommendation with reasoning
-
-2. Enhance system prompt:
-   - Update agent prompt to understand its role as execution assistant
-   - Include context awareness instructions
-   - Add recommendation formatting guidelines
-
-3. Agent integration:
-   - When user asks "what should I work on?" or similar
-   - Agent calls `recommend_next_action` tool
-   - Tool gathers all context and formats for LLM
-   - LLM provides recommendation with reasoning
-
-**Success Criteria:**
-- User asks "what should I work on next?"
-- Agent responds with prioritized recommendation
-- Recommendation references available context
-- Reasoning is clear and actionable
-
-**Files to Create:**
-- `/simple_agent/tools/planning/__init__.py`
-- `/simple_agent/tools/planning/recommend_next.py`
-
-**Files to Modify:**
-- `/simple_agent/core/agent.py` - Update system prompt
-- `/simple_agent/tools/registry.py` - Register new tool
+- `/simple_agent/core/agent.py` - Dynamic system prompt with context injection
+- `/simple_agent/context/extractor.py` - Add method to format context for prompt (may already exist as get_recent_context_summary)
 
 ### Step 4: First External Integration (Calendar)
 
