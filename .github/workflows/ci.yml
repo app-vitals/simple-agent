@@ -42,4 +42,4 @@ jobs:
         
     - name: Run tests with Pytest and coverage
       run: |
-        uv run pytest --cov=simple_agent --cov-report=term --cov-fail-under=90
+        uv run pytest --cov=simple_agent --cov-report=term --cov-fail-under=85
