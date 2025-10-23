@@ -106,7 +106,7 @@ class MCPToolAdapter:
         if "properties" not in input_schema:
             return {}
 
-        # Ensure all parameters have descriptions (required by registry)
+        # Ensure all parameters have descriptions and types (required by registry)
         parameters = {}
         for param_name, param_info in input_schema["properties"].items():
             # Make a copy to avoid modifying the original
@@ -115,6 +115,10 @@ class MCPToolAdapter:
             # Add default description if missing
             if "description" not in param_copy:
                 param_copy["description"] = f"Parameter: {param_name}"
+
+            # Add default type if missing
+            if "type" not in param_copy:
+                param_copy["type"] = "string"
 
             parameters[param_name] = param_copy
 
