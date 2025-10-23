@@ -42,6 +42,10 @@ def main() -> None:
     except KeyboardInterrupt:
         # Handle Ctrl+C with a clean exit via prompt_toolkit
         print_formatted_text(HTML("<ansiyellow>\nInterrupted. Exiting.</ansiyellow>"))
+    finally:
+        # Ensure MCP servers are shut down cleanly
+        if agent.mcp_manager:
+            agent.mcp_manager.shutdown_all_sync()
         sys.exit(0)
 
 

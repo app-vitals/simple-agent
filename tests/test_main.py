@@ -24,9 +24,13 @@ def test_main_run_agent(mocker: MockerFixture) -> None:
 
     # Mock Agent class
     mock_agent = mocker.MagicMock()
+    mock_agent.mcp_manager = None  # No MCP manager in test
     mock_agent_class = mocker.patch(
         "simple_agent.__main__.Agent", return_value=mock_agent
     )
+
+    # Mock sys.exit to avoid actually exiting
+    mock_exit = mocker.patch("sys.exit")
 
     # Run main
     main()
@@ -34,6 +38,8 @@ def test_main_run_agent(mocker: MockerFixture) -> None:
     # Verify Agent was instantiated and run was called
     mock_agent_class.assert_called_once()
     mock_agent.run.assert_called_once()
+    # Verify sys.exit was called with 0
+    mock_exit.assert_called_once_with(0)
 
 
 def test_main_keyboard_interrupt(mocker: MockerFixture) -> None:

@@ -1,5 +1,6 @@
 """Core agent loop implementation."""
 
+import contextlib
 import threading
 import time
 from collections.abc import Callable
@@ -8,16 +9,20 @@ from typing import Any
 from rich.markdown import Markdown
 
 from simple_agent.cli.prompt import CLI, CLIMode
+from simple_agent.config import config
 from simple_agent.context.extractor import ContextExtractor
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 from simple_agent.display import (
     display_error,
+    display_info,
     display_status_message,
     display_warning,
     print_with_padding,
 )
 from simple_agent.live_console import live_context, set_stage_message
 from simple_agent.llm.client import LLMClient
+from simple_agent.tools.mcp.adapter import MCPToolAdapter
+from simple_agent.tools.mcp.manager import MCPServerManager
 
 SYSTEM_PROMPT = """You are Simple Agent, a command line execution efficiency assistant built on Unix philosophy principles.
 
@@ -67,14 +72,50 @@ class Agent:
         """Initialize the agent."""
         self.llm_client = LLMClient()
         self.tool_handler = ToolHandler()
-        self.tools = get_tools_for_llm()
         self.request_start_time: float | None = None
         self.context_extractor = ContextExtractor(llm_client=self.llm_client)
+
+        # Initialize MCP servers if configured
+        self.mcp_manager: MCPServerManager | None = None
+        self.mcp_adapter: MCPToolAdapter | None = None
+        if config.mcp_servers:
+            try:
+                display_info("Loading MCP servers...")
+                self.mcp_manager = MCPServerManager(config.mcp_servers)
+                self.mcp_adapter = MCPToolAdapter(self.mcp_manager)
+                self._load_mcp_tools()
+            except Exception as e:
+                display_warning("Failed to initialize MCP servers", e)
+
+        # Get all tools (now includes MCP tools if loaded)
+        self.tools = get_tools_for_llm()
 
         # Initialize context with system prompt (will be updated dynamically)
         self.context: list[dict] = [
             {"role": "system", "content": self._build_system_prompt()}
         ]
+
+    def _load_mcp_tools(self) -> None:
+        """Start all configured MCP servers and register their tools."""
+        if not self.mcp_manager or not self.mcp_adapter:
+            return
+
+        for server_name in config.mcp_servers:
+            try:
+                # Start server and discover tools
+                display_info(f"Starting MCP server: {server_name}")
+                self.mcp_manager.start_server_sync(server_name)
+                self.mcp_adapter.discover_and_register_tools_sync(server_name)
+                display_info(f"MCP server '{server_name}' loaded successfully")
+            except Exception as e:
+                # Log warning but continue - don't fail agent startup
+                display_warning(f"Failed to load MCP server '{server_name}'", e)
+
+    def __del__(self) -> None:
+        """Cleanup MCP servers on agent destruction."""
+        if self.mcp_manager:
+            with contextlib.suppress(Exception):
+                self.mcp_manager.shutdown_all_sync()
 
     def _build_system_prompt(self) -> str:
         """Build the system prompt with current context injected.
