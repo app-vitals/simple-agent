@@ -213,3 +213,73 @@ def test_patch_file_confirmation_handler(
 
     # Should return the result from show_git_diff_confirmation
     assert result is True
+
+
+@patch("simple_agent.tools.files.diff_utils.Path")
+def test_get_file_diff_for_patch_error(mock_path: MagicMock) -> None:
+    """Test error handling in get_file_diff_for_patch."""
+    # Mock the Path.read_text() to raise an exception
+    mock_path.return_value.read_text.side_effect = Exception("File read error")
+
+    file_path = "/path/to/file.txt"
+    old_content = "Old content"
+    new_content = "New content"
+
+    diff = get_file_diff_for_patch(file_path, old_content, new_content)
+
+    # Should return an error message
+    assert "Error creating diff" in diff
+
+
+def test_show_git_diff_confirmation_with_all_line_types() -> None:
+    """Test showing a diff with all line types (+, -, @@, normal)."""
+    # Create a diff with various line types
+    diff_content = """diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,3 +1,3 @@
+ unchanged line
+-removed line
++added line"""
+
+    # Create a custom input function that returns 'y'
+    def mock_input_func(_: str) -> str:
+        return "y"
+
+    # Test with a custom input function
+    result = show_git_diff_confirmation(diff_content, "test_tool", mock_input_func)
+
+    # Should return True
+    assert result is True
+
+
+def test_show_git_diff_confirmation_with_empty_input() -> None:
+    """Test showing a diff confirmation with empty input (default to yes)."""
+
+    # Create a custom input function that returns empty string
+    def mock_input_func(_: str) -> str:
+        return ""
+
+    # Test with a custom input function
+    result = show_git_diff_confirmation("sample diff", "test_tool", mock_input_func)
+
+    # Should return True (empty input defaults to yes)
+    assert result is True
+
+
+def test_show_git_diff_confirmation_with_tool_args() -> None:
+    """Test showing a diff confirmation with tool arguments."""
+
+    # Create a custom input function that returns 'y'
+    def mock_input_func(_: str) -> str:
+        return "y"
+
+    tool_args = {"file_path": "/test/file.txt", "content": "test content"}
+
+    # Test with a custom input function
+    result = show_git_diff_confirmation(
+        "sample diff", "test_tool", mock_input_func, tool_args
+    )
+
+    # Should return True
+    assert result is True

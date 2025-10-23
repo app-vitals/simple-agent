@@ -507,3 +507,133 @@ Task:
     call_args = agent._send_llm_request.call_args[0][0]  # type: ignore
     assert call_args[0]["role"] == "system"
     assert "New task from context" in call_args[0]["content"]
+
+
+def test_mcp_initialization_disabled(tmp_path: Path, mocker: MockerFixture) -> None:
+    """Test that MCP servers are not initialized when disabled."""
+    # Mock config to have MCP servers but be disabled
+    mock_config = mocker.patch("simple_agent.core.agent.config")
+    mock_config.mcp_servers = {"test": mocker.MagicMock()}
+    mock_config.mcp_disabled = True
+
+    # Create agent
+    agent = Agent()
+    agent.messages.storage.storage_path = tmp_path / "messages.json"
+    agent.messages.storage._ensure_storage_exists()
+
+    # Verify MCP manager was not initialized
+    assert agent.mcp_manager is None
+    assert agent.mcp_adapter is None
+
+
+def test_mcp_initialization_enabled(tmp_path: Path, mocker: MockerFixture) -> None:
+    """Test that MCP servers are initialized when enabled."""
+    # Mock the MCP manager and adapter
+    mock_manager_class = mocker.patch("simple_agent.core.agent.MCPServerManager")
+    mock_adapter_class = mocker.patch("simple_agent.core.agent.MCPToolAdapter")
+    mock_manager = mocker.MagicMock()
+    mock_adapter = mocker.MagicMock()
+    mock_manager_class.return_value = mock_manager
+    mock_adapter_class.return_value = mock_adapter
+
+    # Mock config to have MCP servers and be enabled
+    mock_config = mocker.patch("simple_agent.core.agent.config")
+    mock_server_config = mocker.MagicMock()
+    mock_config.mcp_servers = {"test": mock_server_config}
+    mock_config.mcp_disabled = False
+
+    # Create agent
+    agent = Agent()
+    agent.messages.storage.storage_path = tmp_path / "messages.json"
+    agent.messages.storage._ensure_storage_exists()
+
+    # Verify MCP manager was initialized
+    mock_manager_class.assert_called_once_with({"test": mock_server_config})
+    mock_adapter_class.assert_called_once_with(mock_manager)
+    assert agent.mcp_manager == mock_manager
+    assert agent.mcp_adapter == mock_adapter
+
+
+def test_mcp_initialization_error(tmp_path: Path, mocker: MockerFixture) -> None:
+    """Test that MCP initialization errors are handled gracefully."""
+    # Mock the MCP manager to raise an error
+    mock_manager_class = mocker.patch("simple_agent.core.agent.MCPServerManager")
+    mock_manager_class.side_effect = Exception("MCP init failed")
+
+    # Mock config to have MCP servers and be enabled
+    mock_config = mocker.patch("simple_agent.core.agent.config")
+    mock_config.mcp_servers = {"test": mocker.MagicMock()}
+    mock_config.mcp_disabled = False
+
+    # Mock display_warning to verify it was called
+    mock_warning = mocker.patch("simple_agent.core.agent.display_warning")
+
+    # Create agent (should not raise)
+    agent = Agent()
+    agent.messages.storage.storage_path = tmp_path / "messages.json"
+    agent.messages.storage._ensure_storage_exists()
+
+    # Verify warning was displayed
+    mock_warning.assert_called_once()
+    assert agent.mcp_manager is None
+    assert agent.mcp_adapter is None
+
+
+def test_load_mcp_tools(tmp_path: Path, mocker: MockerFixture) -> None:
+    """Test _load_mcp_tools method."""
+    # Create agent with mocked MCP components
+    agent = Agent()
+    agent.messages.storage.storage_path = tmp_path / "messages.json"
+    agent.messages.storage._ensure_storage_exists()
+
+    # Mock MCP manager and adapter
+    mock_manager = mocker.MagicMock()
+    mock_adapter = mocker.MagicMock()
+    agent.mcp_manager = mock_manager
+    agent.mcp_adapter = mock_adapter
+
+    # Mock config to have a test server
+    mock_config = mocker.patch("simple_agent.core.agent.config")
+    mock_config.mcp_servers = {"test_server": mocker.MagicMock()}
+
+    # Call the method
+    agent._load_mcp_tools()
+
+    # Verify server was started
+    mock_manager.start_server_sync.assert_called_once_with("test_server")
+
+    # Verify tools were discovered and registered
+    mock_adapter.discover_and_register_tools_sync.assert_called_once_with("test_server")
+
+
+def test_load_mcp_tools_server_error(tmp_path: Path, mocker: MockerFixture) -> None:
+    """Test that _load_mcp_tools handles server startup errors gracefully."""
+    # Create agent with mocked MCP components
+    agent = Agent()
+    agent.messages.storage.storage_path = tmp_path / "messages.json"
+    agent.messages.storage._ensure_storage_exists()
+
+    # Mock MCP manager and adapter
+    mock_manager = mocker.MagicMock()
+    mock_adapter = mocker.MagicMock()
+    agent.mcp_manager = mock_manager
+    agent.mcp_adapter = mock_adapter
+
+    # Mock config to have a test server
+    mock_config = mocker.patch("simple_agent.core.agent.config")
+    mock_config.mcp_servers = {"bad_server": mocker.MagicMock()}
+
+    # Make start_server_sync raise an error
+    mock_manager.start_server_sync.side_effect = Exception("Server failed to start")
+
+    # Mock display_warning
+    mock_warning = mocker.patch("simple_agent.core.agent.display_warning")
+
+    # Call the method (should not raise)
+    agent._load_mcp_tools()
+
+    # Verify warning was displayed
+    mock_warning.assert_called_once()
+
+    # Verify discover_and_register was NOT called due to error
+    mock_adapter.discover_and_register_tools_sync.assert_not_called()

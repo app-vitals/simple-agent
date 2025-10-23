@@ -79,10 +79,10 @@ class Agent:
         self.request_start_time: float | None = None
         self.context_extractor = ContextExtractor(llm_client=self.llm_client)
 
-        # Initialize MCP servers if configured
+        # Initialize MCP servers if configured and not disabled
         self.mcp_manager: MCPServerManager | None = None
         self.mcp_adapter: MCPToolAdapter | None = None
-        if config.mcp_servers:
+        if config.mcp_servers and not config.mcp_disabled:
             try:
                 display_info("Loading MCP servers...")
                 self.mcp_manager = MCPServerManager(config.mcp_servers)

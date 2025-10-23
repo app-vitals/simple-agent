@@ -4,6 +4,7 @@ from simple_agent.tools.registry import (
     TOOLS,
     execute_tool_call,
     get_confirmation_handler,
+    get_format_result,
     get_tool_descriptions,
     register,
     requires_confirmation,
@@ -150,3 +151,64 @@ def test_register_without_required_defaults_to_all() -> None:
 
     # Clean up
     del TOOLS["test_all_required"]
+
+
+def test_get_format_result() -> None:
+    """Test getting format_result function for a tool."""
+
+    def custom_formatter(result: str) -> str:
+        return f"Formatted: {result}"
+
+    # Register a tool with custom formatter
+    register(
+        name="test_formatter_tool",
+        function=lambda x: x,
+        description="Test tool with formatter",
+        parameters={"param": {"type": "string", "description": "Test param"}},
+        returns="Test result",
+        requires_confirmation=False,
+        format_result=custom_formatter,
+    )
+
+    # Test getting format_result for existing tool with formatter
+    formatter = get_format_result("test_formatter_tool")
+    assert formatter is not None
+    assert formatter("test") == "Formatted: test"
+
+    # Test getting format_result for existing tool with formatter (read_files has one)
+    read_formatter = get_format_result("read_files")
+    assert read_formatter is not None
+    assert callable(read_formatter)
+
+    # Test getting format_result for non-existent tool
+    result = get_format_result("nonexistent_tool")
+    assert result is None
+
+    # Clean up
+    del TOOLS["test_formatter_tool"]
+
+
+def test_execute_tool_call_with_exception() -> None:
+    """Test that execute_tool_call handles exceptions gracefully."""
+
+    def failing_tool(param: str) -> str:
+        raise ValueError("Tool execution failed")
+
+    # Register a tool that raises an exception
+    register(
+        name="test_failing_tool",
+        function=failing_tool,
+        description="Test tool that fails",
+        parameters={"param": {"type": "string", "description": "Test param"}},
+        returns="Test result",
+        requires_confirmation=False,
+    )
+
+    # Execute the tool and verify error is caught
+    result = execute_tool_call("test_failing_tool", {"param": "test"})
+    assert isinstance(result, str)
+    assert "Error executing tool" in result
+    assert "test_failing_tool" in result
+
+    # Clean up
+    del TOOLS["test_failing_tool"]

@@ -43,6 +43,13 @@ class Config(BaseModel):
 
     llm: LLMConfig = Field(default_factory=LLMConfig)
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
+    mcp_disabled: bool = Field(
+        default_factory=lambda: os.environ.get(
+            "SIMPLE_AGENT_DISABLE_MCP", "false"
+        ).lower()
+        == "true",
+        description="Disable MCP server initialization",
+    )
 
 
 def load_mcp_config() -> dict[str, MCPServerConfig]:
