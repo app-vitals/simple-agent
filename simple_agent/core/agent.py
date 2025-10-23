@@ -82,9 +82,9 @@ class Agent:
         # Initialize MCP servers if configured and not disabled
         self.mcp_manager: MCPServerManager | None = None
         self.mcp_adapter: MCPToolAdapter | None = None
+        self.mcp_errors: dict[str, str] = {}  # Track server load errors
         if config.mcp_servers and not config.mcp_disabled:
             try:
-                display_info("Loading MCP servers...")
                 self.mcp_manager = MCPServerManager(config.mcp_servers)
                 self.mcp_adapter = MCPToolAdapter(self.mcp_manager)
                 self._load_mcp_tools()
@@ -106,12 +106,11 @@ class Agent:
         for server_name in config.mcp_servers:
             try:
                 # Start server and discover tools
-                display_info(f"Starting MCP server: {server_name}")
                 self.mcp_manager.start_server_sync(server_name)
                 self.mcp_adapter.discover_and_register_tools_sync(server_name)
-                display_info(f"MCP server '{server_name}' loaded successfully")
             except Exception as e:
-                # Log warning but continue - don't fail agent startup
+                # Track error and log warning but continue - don't fail agent startup
+                self.mcp_errors[server_name] = str(e)
                 display_warning(f"Failed to load MCP server '{server_name}'", e)
 
     def __del__(self) -> None:
@@ -236,6 +235,8 @@ class Agent:
             process_input_callback=self._process_input,
             on_start_callback=self._display_loaded_messages,
             message_manager=self.messages,
+            mcp_manager=self.mcp_manager,
+            mcp_errors=self.mcp_errors,
         )
 
         # Run the interactive prompt loop

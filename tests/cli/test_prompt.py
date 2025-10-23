@@ -569,3 +569,107 @@ def test_clear_command_without_message_manager(mocker: MockerFixture) -> None:
 
     # Verify clear() was still called
     mock_clear.assert_called_once()
+
+
+def test_show_mcp_servers_no_servers(mocker: MockerFixture) -> None:
+    """Test show_mcp_servers when no servers are configured."""
+    mock_process_input = mocker.MagicMock()
+    cli = CLI(process_input_callback=mock_process_input)
+
+    # Mock config to have no servers
+    mocker.patch("simple_agent.cli.prompt.config.mcp_servers", {})
+
+    # Mock console.print
+    mock_print = mocker.patch("simple_agent.display.console.print")
+
+    # Call show_mcp_servers
+    cli.show_mcp_servers()
+
+    # Verify it printed "No MCP servers configured" (3 calls: newline, message, newline)
+    assert mock_print.call_count == 3
+    call_args = str(mock_print.call_args_list)
+    assert "No MCP servers configured" in call_args
+
+
+def test_show_mcp_servers_with_running_server(mocker: MockerFixture) -> None:
+    """Test show_mcp_servers with a running server."""
+    mock_process_input = mocker.MagicMock()
+
+    # Create mock MCP manager with a running server
+    mock_mcp_manager = mocker.MagicMock()
+    mock_mcp_manager.sessions = {"test-server": mocker.MagicMock()}
+
+    cli = CLI(
+        process_input_callback=mock_process_input,
+        mcp_manager=mock_mcp_manager,
+        mcp_errors={},
+    )
+
+    # Mock config with servers
+    mocker.patch(
+        "simple_agent.cli.prompt.config.mcp_servers",
+        {"test-server": mocker.MagicMock()},
+    )
+    mocker.patch("simple_agent.cli.prompt.config.mcp_disabled", False)
+
+    # Mock console.print
+    mock_print = mocker.patch("simple_agent.display.console.print")
+
+    # Call show_mcp_servers
+    cli.show_mcp_servers()
+
+    # Verify it printed server info with running status
+    call_args_list = [str(call) for call in mock_print.call_args_list]
+    assert any("test-server" in arg for arg in call_args_list)
+    assert any("running" in arg for arg in call_args_list)
+
+
+def test_show_mcp_servers_with_failed_server(mocker: MockerFixture) -> None:
+    """Test show_mcp_servers with a failed server."""
+    mock_process_input = mocker.MagicMock()
+
+    # Create CLI with error tracking
+    cli = CLI(
+        process_input_callback=mock_process_input,
+        mcp_manager=None,
+        mcp_errors={"test-server": "Connection failed"},
+    )
+
+    # Mock config with servers
+    mocker.patch(
+        "simple_agent.cli.prompt.config.mcp_servers",
+        {"test-server": mocker.MagicMock()},
+    )
+    mocker.patch("simple_agent.cli.prompt.config.mcp_disabled", False)
+
+    # Mock console.print
+    mock_print = mocker.patch("simple_agent.display.console.print")
+
+    # Call show_mcp_servers
+    cli.show_mcp_servers()
+
+    # Verify it printed server info with failed status
+    call_args_list = [str(call) for call in mock_print.call_args_list]
+    assert any("test-server" in arg for arg in call_args_list)
+    assert any("failed to load" in arg for arg in call_args_list)
+
+
+def test_mcp_command_in_interactive_loop(mocker: MockerFixture) -> None:
+    """Test /mcp command handling in interactive loop."""
+    mock_process_input = mocker.MagicMock()
+    cli = CLI(process_input_callback=mock_process_input)
+
+    # Mock console.print
+    mocker.patch("simple_agent.display.console.print")
+
+    # Mock session.prompt to return /mcp then /exit
+    cli.session.prompt = mocker.MagicMock(side_effect=["/mcp", "/exit"])  # type: ignore
+
+    # Mock show_mcp_servers to verify it gets called
+    mock_show_mcp = mocker.patch.object(cli, "show_mcp_servers")
+
+    # Run the interactive loop
+    cli.run_interactive_loop()
+
+    # Verify show_mcp_servers was called
+    mock_show_mcp.assert_called_once()

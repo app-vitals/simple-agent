@@ -17,6 +17,7 @@ from prompt_toolkit.styles import Style
 from rich.padding import Padding
 
 from simple_agent.cli.completion import Completer
+from simple_agent.config import config
 from simple_agent.context import get_context_manager
 from simple_agent.display import (
     console,
@@ -142,6 +143,7 @@ Help you execute on short-term tasks and long-term goals.
 • [green]/clear[/green]:         Clear the terminal screen and conversation history
 • [green]/show-context[/green]:  View recent context
 • [green]/clear-context[/green]: Clear stored context
+• [green]/mcp[/green]:           View configured MCP servers
 • [green]/exit[/green]:          Exit the agent
 • [green]![/green]:              Run a shell command directly
 
@@ -161,6 +163,8 @@ class CLI:
         process_input_callback: Callable[[str], None],
         on_start_callback: Callable[[], None] | None = None,
         message_manager: Any | None = None,
+        mcp_manager: Any | None = None,
+        mcp_errors: dict[str, str] | None = None,
     ) -> None:
         """Initialize the CLI.
 
@@ -168,10 +172,14 @@ class CLI:
             process_input_callback: Callback for processing user input
             on_start_callback: Optional callback to run after splash screen
             message_manager: Optional message manager for clearing conversation history
+            mcp_manager: Optional MCP manager for displaying server status
+            mcp_errors: Optional dictionary of MCP server load errors
         """
         self.process_input = process_input_callback
         self.on_start_callback = on_start_callback
         self.message_manager = message_manager
+        self.mcp_manager = mcp_manager
+        self.mcp_errors = mcp_errors or {}
         self.mode = CLIMode.NORMAL
 
         # Set up prompt style
@@ -270,6 +278,44 @@ class CLI:
             Padding(f"[green]Cleared {count} context entries.[/green]", (0, 0, 0, 2))
         )
 
+    def show_mcp_servers(self) -> None:
+        """Display configured MCP servers and their status."""
+        if not config.mcp_servers:
+            console.print()
+            console.print(
+                Padding("[dim]No MCP servers configured.[/dim]", (0, 0, 0, 2))
+            )
+            console.print()
+            return
+
+        if config.mcp_disabled:
+            console.print()
+            console.print(
+                Padding(
+                    "[yellow]MCP servers are disabled (SIMPLE_AGENT_DISABLE_MCP=true)[/yellow]",
+                    (0, 0, 0, 2),
+                )
+            )
+            console.print()
+
+        console.print()
+        console.print(
+            Padding("[bold cyan]Configured MCP Servers:[/bold cyan]", (0, 0, 0, 2))
+        )
+
+        for server_name in config.mcp_servers:
+            # Check if server is running or has errors
+            if server_name in self.mcp_errors:
+                status = "[red]failed to load[/red]"
+            elif self.mcp_manager and server_name in self.mcp_manager.sessions:
+                status = "[green]running[/green]"
+            else:
+                status = "[red]not running[/red]"
+
+            console.print(Padding(f"{server_name} - {status}", (0, 0, 0, 2)))
+
+        console.print()
+
     def set_mode(self, mode: CLIMode) -> bool:
         """Set the current interaction mode.
 
@@ -302,6 +348,7 @@ class CLI:
 ┃ /clear          clear screen & conversation    ┃
 ┃ /show-context   view recent context            ┃
 ┃ /clear-context  reset context                  ┃
+┃ /mcp            view MCP servers               ┃
 ┃ /exit           to quit                        ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
@@ -350,6 +397,9 @@ class CLI:
                     continue
                 elif user_input.lower() == "/clear-context":
                     self.clear_context()
+                    continue
+                elif user_input.lower() == "/mcp":
+                    self.show_mcp_servers()
                     continue
                 elif user_input.startswith("/"):
                     # Handle unknown slash commands

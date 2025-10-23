@@ -25,6 +25,7 @@ class CommandCompleter(PTKCompleter):
             "/clear": "Clear the screen",
             "/show-context": "Show recent context entries",
             "/clear-context": "Clear all context entries",
+            "/mcp": "View configured MCP servers",
             "\\ + Enter": "to create a new line",
         }
 
