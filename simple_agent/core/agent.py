@@ -21,6 +21,7 @@ from simple_agent.display import (
 )
 from simple_agent.live_console import live_context, set_stage_message
 from simple_agent.llm.client import LLMClient
+from simple_agent.messages import MessageManager
 from simple_agent.tools.mcp.adapter import MCPToolAdapter
 from simple_agent.tools.mcp.manager import MCPServerManager
 
@@ -90,10 +91,9 @@ class Agent:
         # Get all tools (now includes MCP tools if loaded)
         self.tools = get_tools_for_llm()
 
-        # Initialize context with system prompt (will be updated dynamically)
-        self.context: list[dict] = [
-            {"role": "system", "content": self._build_system_prompt()}
-        ]
+        # Initialize message manager and load previous messages
+        self.messages = MessageManager(max_messages=50)
+        self.messages.load()
 
     def _load_mcp_tools(self) -> None:
         """Start all configured MCP servers and register their tools."""
@@ -195,11 +195,8 @@ class Agent:
         Args:
             message: The user's message
         """
-        # Refresh system prompt with latest context
-        self.context[0] = {"role": "system", "content": self._build_system_prompt()}
-
-        # Update context with user message
-        self.context.append({"role": "user", "content": message})
+        # Add user message to history
+        self.messages.append({"role": "user", "content": message})
         if self.cli.mode != CLIMode.NORMAL:
             return
 
@@ -218,8 +215,13 @@ class Agent:
                 else:
                     set_stage_message("Processing tools...")
 
+                # Build message list with fresh system prompt
+                messages_for_llm = self.messages.build_for_llm(
+                    self._build_system_prompt()
+                )
+
                 # Send to LLM
-                response = self._send_llm_request(self.context)
+                response = self._send_llm_request(messages_for_llm)
 
                 if not response:
                     display_error("Failed to get a response")
@@ -239,8 +241,8 @@ class Agent:
                     if content:
                         # Print with padding and an extra line at the end
                         print_with_padding(Markdown(content), extra_line=True)
-                        # Add to context
-                        self.context.append({"role": "assistant", "content": content})
+                        # Add to messages
+                        self.messages.append({"role": "assistant", "content": content})
                     else:
                         display_error("Empty response from LLM")
 
@@ -255,15 +257,20 @@ class Agent:
                     )
 
                 # Handle tool calls
-                # Add the assistant's response with tool calls to context
+                # Add the assistant's response with tool calls to messages
                 assistant_message = {"role": "assistant"}
                 assistant_message.update(response.choices[0].message.model_dump())
-                self.context.append(assistant_message)
+                self.messages.append(assistant_message)
 
-                # Process tool calls
-                self.context = self.tool_handler.process_tool_calls(
-                    tool_calls, self.context
+                # Process tool calls and get updated message list
+                updated_messages = self.tool_handler.process_tool_calls(
+                    tool_calls, self.messages.get_all()
                 )
+
+                # Update messages with tool results (replace all non-system messages)
+                # Clear current messages and add back the updated ones
+                self.messages.clear()
+                self.messages.extend(updated_messages)
 
                 # Increment iteration counter
                 iteration += 1
@@ -279,13 +286,13 @@ class Agent:
 
     def _extract_context(self) -> None:
         """Extract and store context from the recent interaction in the background."""
-        # Make a copy of the context to avoid race conditions
-        context_copy = self.context.copy()
+        # Make a copy of the messages to avoid race conditions
+        messages_copy = self.messages.get_all().copy()
 
         def extract_in_background() -> None:
             try:
                 # Extract context from the conversation messages
-                self.context_extractor.extract_from_messages(context_copy)
+                self.context_extractor.extract_from_messages(messages_copy)
             except Exception as e:
                 # Show warning but don't crash
                 display_warning(f"Context extraction failed: {e}")

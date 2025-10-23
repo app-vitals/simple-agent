@@ -1,6 +1,7 @@
 """Tests for the agent module."""
 
 import contextlib
+from pathlib import Path
 
 import pytest
 from pytest_mock import MockerFixture
@@ -10,16 +11,21 @@ from simple_agent.core.agent import Agent
 
 
 @pytest.fixture
-def agent() -> Agent:
-    """Create an agent for testing."""
-    return Agent()
+def agent(tmp_path: Path) -> Agent:
+    """Create an agent for testing with isolated message storage."""
+    agent = Agent()
+    # Use temporary storage path for tests to avoid interference
+    agent.messages.storage.storage_path = tmp_path / "messages.json"
+    agent.messages.storage._ensure_storage_exists()
+    agent.messages.clear()  # Start with empty messages
+    return agent
 
 
 def test_agent_init(agent: Agent) -> None:
     """Test agent initialization."""
-    assert len(agent.context) == 1
-    assert agent.context[0]["role"] == "system"
-    assert "Unix philosophy" in agent.context[0]["content"]
+    assert (
+        len(agent.messages) == 0
+    )  # Messages start empty, system prompt is added dynamically
     assert hasattr(agent, "llm_client")
     assert hasattr(agent, "tool_handler")
     assert hasattr(agent, "tools")
@@ -100,14 +106,14 @@ def test_handle_ai_request(agent: Agent, mocker: MockerFixture) -> None:
     # Call the method
     agent._handle_ai_request("Hello")
 
-    # Verify context was updated with user message
-    assert {"role": "user", "content": "Hello"} in agent.context
+    # Verify messages was updated with user message
+    assert {"role": "user", "content": "Hello"} in agent.messages.get_all()
 
-    # Verify LLM request was sent
-    agent._send_llm_request.assert_called_once_with(agent.context)  # type: ignore
+    # Verify LLM request was sent (with system prompt prepended)
+    agent._send_llm_request.assert_called_once()  # type: ignore
 
-    # Verify response was added to context
-    assert {"role": "assistant", "content": "Test response"} in agent.context
+    # Verify response was added to messages
+    assert {"role": "assistant", "content": "Test response"} in agent.messages.get_all()
 
 
 def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) -> None:
@@ -130,9 +136,6 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
 
     mock_followup_response = mocker.MagicMock()
 
-    # Set up test context with system prompt (realistic)
-    agent.context = [{"role": "system", "content": "Test system prompt"}]
-
     # Mock the processed messages after tool execution
     processed_messages = [{"role": "user", "content": "Hello"}]
     agent.tool_handler.process_tool_calls.return_value = processed_messages  # type: ignore
@@ -151,8 +154,8 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
     # Call the method
     agent._handle_ai_request("Hello")
 
-    # Verify the user message was added to context
-    assert {"role": "user", "content": "Hello"} in agent.context
+    # Verify the user message was added to messages
+    assert {"role": "user", "content": "Hello"} in agent.messages.get_all()
 
     # Verify LLM was called twice (once for initial, once for follow-up)
     assert agent._send_llm_request.call_count == 2  # type: ignore
@@ -161,10 +164,10 @@ def test_handle_ai_request_with_tool_calls(agent: Agent, mocker: MockerFixture) 
     agent.tool_handler.process_tool_calls.assert_called_once()  # type: ignore
     args = agent.tool_handler.process_tool_calls.call_args[0]  # type: ignore
     assert args[0] == mock_tool_calls  # First arg should be tool_calls
-    assert isinstance(args[1], list)  # Second arg should be a list (context)
+    assert isinstance(args[1], list)  # Second arg should be a list (messages)
 
-    # Verify final response was added to context
-    assert {"role": "assistant", "content": "Final result"} in agent.context
+    # Verify final response was added to messages
+    assert {"role": "assistant", "content": "Final result"} in agent.messages.get_all()
 
 
 def test_handle_ai_request_with_nested_tool_calls(
@@ -190,9 +193,6 @@ def test_handle_ai_request_with_nested_tool_calls(
     mock_response2 = mocker.MagicMock()
     mock_response2.choices = [mocker.MagicMock()]
     mock_final_response = mocker.MagicMock()
-
-    # Set up test context with system prompt (realistic)
-    agent.context = [{"role": "system", "content": "Test system prompt"}]
 
     # Mock the processed messages after tool executions
     processed_messages1 = [{"role": "user", "content": "First tool result"}]
@@ -225,8 +225,8 @@ def test_handle_ai_request_with_nested_tool_calls(
     # Verify tool_handler was called twice
     assert agent.tool_handler.process_tool_calls.call_count == 2  # type: ignore
 
-    # Verify final response was added to context
-    assert {"role": "assistant", "content": "Final result"} in agent.context
+    # Verify final response was added to messages
+    assert {"role": "assistant", "content": "Final result"} in agent.messages.get_all()
 
 
 def test_handle_ai_request_error(agent: Agent, mocker: MockerFixture) -> None:
@@ -243,8 +243,8 @@ def test_handle_ai_request_error(agent: Agent, mocker: MockerFixture) -> None:
     # Call the method
     agent._handle_ai_request("Hello")
 
-    # Verify context was updated with user message
-    assert {"role": "user", "content": "Hello"} in agent.context
+    # Verify messages was updated with user message
+    assert {"role": "user", "content": "Hello"} in agent.messages.get_all()
 
     # Can't verify display_error was called due to import mocking issues,
     # but we can verify no error is raised and the code handles the None response
@@ -290,9 +290,6 @@ def test_handle_ai_request_max_iterations(agent: Agent, mocker: MockerFixture) -
     mock_response = mocker.MagicMock()
     mock_response.choices = [mocker.MagicMock()]
 
-    # Set up test context with system prompt (realistic)
-    agent.context = [{"role": "system", "content": "Test system prompt"}]
-
     # Mock the processed messages after tool execution
     processed_messages = [{"role": "user", "content": "Tool result"}]
     agent.tool_handler.process_tool_calls.return_value = processed_messages  # type: ignore
@@ -335,63 +332,25 @@ def test_handle_ai_request_with_keyboard_interrupt_propagation(
     # The test passes if we reach this point without raising an exception
 
 
-def test_context_management() -> None:
-    """Test context management logic."""
+def test_context_management(tmp_path: Path) -> None:
+    """Test message management logic."""
     agent = Agent()
+    # Use temporary storage to avoid interference
+    agent.messages.storage.storage_path = tmp_path / "messages.json"
+    agent.messages.storage._ensure_storage_exists()
+    agent.messages.clear()
 
-    # Set up a test context
-    agent.context = [{"role": "system", "content": "You are a helpful assistant."}]
-
-    # Add more than 10 messages
+    # Add more than 10 messages (max_messages is set to 50 by default, but we'll test the logic)
     for i in range(15):
-        agent.context.append({"role": "user", "content": f"Message {i}"})
-        agent.context.append({"role": "assistant", "content": f"Response {i}"})
+        agent.messages.append({"role": "user", "content": f"Message {i}"})
+        agent.messages.append({"role": "assistant", "content": f"Response {i}"})
 
-        # Apply the context truncation logic
-        if len(agent.context) > 10:
-            # Keep the most recent messages, preserving system message if present
-            start_idx = (
-                1 if agent.context and agent.context[0]["role"] == "system" else 0
-            )
-            agent.context = (
-                agent.context[0:1] + agent.context[-9:]
-                if start_idx == 1
-                else agent.context[-10:]
-            )
+    # Verify all messages are stored (under the 50 limit)
+    assert len(agent.messages) == 30  # 15 user + 15 assistant
 
-    # Verify our context is capped at 10 messages
-    assert len(agent.context) == 10
-
-    # The system message should be preserved at index 0
-    assert agent.context[0] == {
-        "role": "system",
-        "content": "You are a helpful assistant.",
-    }
-
-    # We should have dropped the older messages
-    assert "Message 0" not in str(agent.context)
-
-    # Now test without a system message
-    agent.context = []
-
-    # Add more than 10 messages
-    for i in range(15):
-        agent.context.append({"role": "user", "content": f"Message {i}"})
-        agent.context.append({"role": "assistant", "content": f"Response {i}"})
-
-        # Apply the context truncation logic
-        if len(agent.context) > 10:
-            start_idx = (
-                1 if agent.context and agent.context[0]["role"] == "system" else 0
-            )
-            agent.context = (
-                agent.context[0:1] + agent.context[-9:]
-                if start_idx == 1
-                else agent.context[-10:]
-            )
-
-    # Verify we kept only the 10 most recent messages
-    assert len(agent.context) == 10
+    # We should have all messages since we're under the limit
+    assert "Message 0" in str(agent.messages.get_all())
+    assert "Message 14" in str(agent.messages.get_all())
 
 
 def test_get_status_message(agent: Agent, mocker: MockerFixture) -> None:
@@ -538,15 +497,13 @@ Task:
     agent._send_llm_request = mocker.MagicMock(return_value=mock_response)  # type: ignore
     agent.llm_client.get_message_content.return_value = ("Test response", None)  # type: ignore
 
-    # Set initial context
-    agent.context = [{"role": "system", "content": "Initial prompt"}]
-
     # Call the method
     agent._handle_ai_request("Hello")
 
-    # Verify system prompt was refreshed (first message in context)
-    assert agent.context[0]["role"] == "system"
-    assert "New task from context" in agent.context[0]["content"]
-
     # Verify _build_system_prompt was indirectly called via get_recent_context_summary
     mock_extractor.get_recent_context_summary.assert_called()
+
+    # Verify _send_llm_request was called with messages that include system prompt
+    call_args = agent._send_llm_request.call_args[0][0]  # type: ignore
+    assert call_args[0]["role"] == "system"
+    assert "New task from context" in call_args[0]["content"]
