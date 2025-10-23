@@ -68,25 +68,75 @@ def test_convert_input_schema_with_properties(adapter: MCPToolAdapter) -> None:
             "arg1": {"type": "string", "description": "First argument"},
             "arg2": {"type": "number"},
         },
+        "required": ["arg1"],
     }
 
-    result = adapter._convert_input_schema(input_schema)
+    parameters, required = adapter._convert_input_schema(input_schema)
 
-    assert "arg1" in result
-    assert result["arg1"]["type"] == "string"
-    assert result["arg1"]["description"] == "First argument"
-    assert "arg2" in result
+    assert "arg1" in parameters
+    assert parameters["arg1"]["type"] == "string"
+    assert parameters["arg1"]["description"] == "First argument"
+    assert "arg2" in parameters
     # Should add default description
-    assert result["arg2"]["description"] == "Parameter: arg2"
+    assert parameters["arg2"]["description"] == "Parameter: arg2"
+    # Should preserve required list
+    assert required == ["arg1"]
 
 
 def test_convert_input_schema_without_properties(adapter: MCPToolAdapter) -> None:
     """Test converting MCP input schema without properties."""
     input_schema = {"type": "object"}
 
-    result = adapter._convert_input_schema(input_schema)
+    parameters, required = adapter._convert_input_schema(input_schema)
 
-    assert result == {}
+    assert parameters == {}
+    assert required == []
+
+
+def test_convert_input_schema_without_required(adapter: MCPToolAdapter) -> None:
+    """Test converting MCP input schema without required field."""
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "arg1": {"type": "string", "description": "First argument"},
+        },
+    }
+
+    parameters, required = adapter._convert_input_schema(input_schema)
+
+    assert "arg1" in parameters
+    # If no required field, should return empty list
+    assert required == []
+
+
+def test_register_tool_with_optional_parameters(
+    adapter: MCPToolAdapter, mock_manager: MagicMock
+) -> None:
+    """Test that tools with optional parameters are properly registered."""
+    # Create mock tool with both required and optional parameters
+    mock_tool = MagicMock()
+    mock_tool.name = "test_optional_tool"
+    mock_tool.description = "A tool with optional parameters"
+    mock_tool.inputSchema = {
+        "type": "object",
+        "properties": {
+            "required_param": {"type": "string", "description": "Required parameter"},
+            "optional_param": {"type": "string", "description": "Optional parameter"},
+        },
+        "required": ["required_param"],
+    }
+
+    mock_manager.list_tools_sync.return_value = [mock_tool]
+
+    # Register the tool
+    adapter.discover_and_register_tools_sync("test_server")
+
+    # Verify tool was registered with correct required list
+    assert "test_optional_tool" in TOOLS
+    assert TOOLS["test_optional_tool"]["required"] == ["required_param"]
+
+    # Clean up
+    del TOOLS["test_optional_tool"]
 
 
 def test_tool_wrapper_execution(

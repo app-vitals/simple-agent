@@ -44,6 +44,7 @@ def register(
         Callable[[str, dict[str, Any], Callable[[str], str]], bool] | None
     ) = None,
     format_result: Callable[[str], str] | None = None,
+    required: list[str] | None = None,
 ) -> None:
     """Register a tool function with the registry.
 
@@ -60,6 +61,8 @@ def register(
             and return True if the user confirms, False otherwise.
         format_result: Optional function to format the tool result for display
             Takes the raw result string and returns a formatted string for display
+        required: Optional list of required parameter names. If None, all parameters
+            are considered required (default behavior for backwards compatibility)
     """
     TOOLS[name] = {
         "function": function,
@@ -69,6 +72,7 @@ def register(
         "requires_confirmation": requires_confirmation,
         "confirmation_handler": confirmation_handler,
         "format_result": format_result,
+        "required": required,
     }
 
 
@@ -95,6 +99,12 @@ def get_tool_descriptions() -> list[dict[str, Any]]:
     """
     tool_descriptions = []
     for tool_name, tool_info in TOOLS.items():
+        # Use the stored required list if available, otherwise default to all parameters
+        required = tool_info.get("required")
+        if required is None:
+            # Backwards compatibility: if no required list specified, all params required
+            required = list(tool_info["parameters"].keys())
+
         tool_descriptions.append(
             {
                 "type": "function",
@@ -112,7 +122,7 @@ def get_tool_descriptions() -> list[dict[str, Any]]:
                                 "parameters"
                             ].items()
                         },
-                        "required": list(tool_info["parameters"].keys()),
+                        "required": required,
                     },
                 },
             }

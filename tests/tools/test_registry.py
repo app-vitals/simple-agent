@@ -1,9 +1,11 @@
 """Tests for the tools registry module."""
 
 from simple_agent.tools.registry import (
+    TOOLS,
     execute_tool_call,
     get_confirmation_handler,
     get_tool_descriptions,
+    register,
     requires_confirmation,
 )
 
@@ -74,3 +76,77 @@ def test_execute_tool_call() -> None:
     assert (
         result["/not/a/real/file.txt"] is None
     )  # Value should be None for non-existent file
+
+
+def test_register_with_optional_parameters() -> None:
+    """Test that tools can be registered with optional parameters."""
+
+    def test_tool(required_param: str, optional_param: str = "default") -> str:
+        return f"{required_param}, {optional_param}"
+
+    # Register tool with required list
+    register(
+        name="test_optional_tool",
+        function=test_tool,
+        description="Test tool with optional parameters",
+        parameters={
+            "required_param": {"type": "string", "description": "Required parameter"},
+            "optional_param": {
+                "type": "string",
+                "description": "Optional parameter with default",
+            },
+        },
+        returns="Test result",
+        requires_confirmation=False,
+        required=["required_param"],
+    )
+
+    # Verify tool was registered
+    assert "test_optional_tool" in TOOLS
+    assert TOOLS["test_optional_tool"]["required"] == ["required_param"]
+
+    # Verify get_tool_descriptions includes proper required list
+    descriptions = get_tool_descriptions()
+    test_tool_desc = next(
+        (d for d in descriptions if d["function"]["name"] == "test_optional_tool"), None
+    )
+    assert test_tool_desc is not None
+    assert test_tool_desc["function"]["parameters"]["required"] == ["required_param"]
+
+    # Clean up
+    del TOOLS["test_optional_tool"]
+
+
+def test_register_without_required_defaults_to_all() -> None:
+    """Test that tools without required list default to all parameters required."""
+
+    def test_tool_all_required(param1: str, param2: str) -> str:
+        return f"{param1}, {param2}"
+
+    # Register tool without required list (backwards compatibility)
+    register(
+        name="test_all_required",
+        function=test_tool_all_required,
+        description="Test tool with all params required",
+        parameters={
+            "param1": {"type": "string", "description": "First parameter"},
+            "param2": {"type": "string", "description": "Second parameter"},
+        },
+        returns="Test result",
+        requires_confirmation=False,
+    )
+
+    # Verify get_tool_descriptions defaults to all params required
+    descriptions = get_tool_descriptions()
+    test_tool_desc = next(
+        (d for d in descriptions if d["function"]["name"] == "test_all_required"), None
+    )
+    assert test_tool_desc is not None
+    # Should default to all parameters required for backwards compatibility
+    assert set(test_tool_desc["function"]["parameters"]["required"]) == {
+        "param1",
+        "param2",
+    }
+
+    # Clean up
+    del TOOLS["test_all_required"]

@@ -74,7 +74,7 @@ class MCPToolAdapter:
 
         # Convert MCP inputSchema to registry parameters format
         # MCP already uses JSON Schema, which is compatible with OpenAI format
-        parameters = self._convert_input_schema(input_schema)
+        parameters, required = self._convert_input_schema(input_schema)
 
         # Register with the tool registry
         # Require confirmation for MCP tools by default for safety
@@ -83,12 +83,15 @@ class MCPToolAdapter:
             function=tool_wrapper,
             description=description,
             parameters=parameters,
+            required=required,
             returns="Tool execution result",
             requires_confirmation=True,
             format_result=lambda content: "[dim]✓ Tool executed[/dim]",
         )
 
-    def _convert_input_schema(self, input_schema: dict[str, Any]) -> dict[str, Any]:
+    def _convert_input_schema(
+        self, input_schema: dict[str, Any]
+    ) -> tuple[dict[str, Any], list[str]]:
         """Convert MCP inputSchema to registry parameters format.
 
         MCP uses JSON Schema which is already compatible with OpenAI format.
@@ -99,12 +102,12 @@ class MCPToolAdapter:
             input_schema: MCP tool input schema (JSON Schema)
 
         Returns:
-            Parameters dict for tool registry
+            Tuple of (parameters dict, list of required parameter names)
         """
         # MCP inputSchema is a JSON Schema object with type, properties, etc.
         # The registry expects just the properties dict
         if "properties" not in input_schema:
-            return {}
+            return {}, []
 
         # Ensure all parameters have descriptions and types (required by registry)
         parameters = {}
@@ -122,4 +125,8 @@ class MCPToolAdapter:
 
             parameters[param_name] = param_copy
 
-        return parameters
+        # Extract required parameters from the schema
+        # In JSON Schema, "required" is an array of parameter names
+        required = input_schema.get("required", [])
+
+        return parameters, required
