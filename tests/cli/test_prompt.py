@@ -520,3 +520,52 @@ def test_shell_mode_in_interactive_loop(
     assert "Command:" in args
     assert "$ ls" in args
     assert "Output:" in args
+
+
+def test_clear_command_clears_messages(mocker: MockerFixture) -> None:
+    """Test that /clear command clears message history if message manager is provided."""
+    # Create a mock message manager
+    mock_message_manager = mocker.MagicMock()
+    mock_process_input = mocker.MagicMock()
+
+    # Create CLI with message manager
+    cli = CLI(
+        process_input_callback=mock_process_input,
+        message_manager=mock_message_manager,
+    )
+
+    # Mock console.print and clear function
+    mocker.patch("simple_agent.display.console.print")
+    mock_clear = mocker.patch("simple_agent.cli.prompt.clear")
+
+    # Mock session.prompt to return /clear then /exit
+    cli.session.prompt = mocker.MagicMock(side_effect=["/clear", "/exit"])  # type: ignore
+
+    # Run the interactive loop
+    cli.run_interactive_loop()
+
+    # Verify clear() was called
+    mock_clear.assert_called_once()
+    # Verify message manager's clear was called
+    mock_message_manager.clear.assert_called_once()
+
+
+def test_clear_command_without_message_manager(mocker: MockerFixture) -> None:
+    """Test that /clear command works without message manager (backward compatibility)."""
+    mock_process_input = mocker.MagicMock()
+
+    # Create CLI without message manager
+    cli = CLI(process_input_callback=mock_process_input)
+
+    # Mock console.print and clear function
+    mocker.patch("simple_agent.display.console.print")
+    mock_clear = mocker.patch("simple_agent.cli.prompt.clear")
+
+    # Mock session.prompt to return /clear then /exit
+    cli.session.prompt = mocker.MagicMock(side_effect=["/clear", "/exit"])  # type: ignore
+
+    # Run the interactive loop - should not crash
+    cli.run_interactive_loop()
+
+    # Verify clear() was still called
+    mock_clear.assert_called_once()

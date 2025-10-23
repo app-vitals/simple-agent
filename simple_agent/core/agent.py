@@ -235,6 +235,7 @@ class Agent:
         self.cli = CLI(
             process_input_callback=self._process_input,
             on_start_callback=self._display_loaded_messages,
+            message_manager=self.messages,
         )
 
         # Run the interactive prompt loop

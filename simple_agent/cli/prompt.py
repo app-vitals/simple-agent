@@ -3,6 +3,7 @@
 import os
 from collections.abc import Callable
 from enum import Enum
+from typing import Any
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -138,7 +139,7 @@ Help you execute on short-term tasks and long-term goals.
 
 [bold]Commands:[/bold]
 • [green]/help[/green]:          Show this help message
-• [green]/clear[/green]:         Clear the terminal screen
+• [green]/clear[/green]:         Clear the terminal screen and conversation history
 • [green]/show-context[/green]:  View recent context
 • [green]/clear-context[/green]: Clear stored context
 • [green]/exit[/green]:          Exit the agent
@@ -159,15 +160,18 @@ class CLI:
         self,
         process_input_callback: Callable[[str], None],
         on_start_callback: Callable[[], None] | None = None,
+        message_manager: Any | None = None,
     ) -> None:
         """Initialize the CLI.
 
         Args:
             process_input_callback: Callback for processing user input
             on_start_callback: Optional callback to run after splash screen
+            message_manager: Optional message manager for clearing conversation history
         """
         self.process_input = process_input_callback
         self.on_start_callback = on_start_callback
+        self.message_manager = message_manager
         self.mode = CLIMode.NORMAL
 
         # Set up prompt style
@@ -291,15 +295,15 @@ class CLI:
         """Run the interactive prompt loop."""
         # Display welcome message with styling
         welcome_message = """
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃          🤖 Simple Agent              ┃
-┃                                        ┃
-┃ /help           for available commands ┃
-┃ /clear          clear the screen       ┃
-┃ /show-context   view recent context    ┃
-┃ /clear-context  reset context          ┃
-┃ /exit           to quit                ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃          🤖 Simple Agent                      ┃
+┃                                                ┃
+┃ /help           for available commands         ┃
+┃ /clear          clear screen & conversation    ┃
+┃ /show-context   view recent context            ┃
+┃ /clear-context  reset context                  ┃
+┃ /exit           to quit                        ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 """
         # Using direct console.print since we want custom formatting for the welcome box
         console.print(
@@ -331,6 +335,15 @@ class CLI:
                     continue
                 elif user_input.lower() == "/clear":
                     clear()
+                    # Also clear message history if message manager is available
+                    if self.message_manager:
+                        self.message_manager.clear()
+                        console.print(
+                            Padding(
+                                "[green]Conversation history cleared.[/green]",
+                                (0, 0, 0, 2),
+                            )
+                        )
                     continue
                 elif user_input.lower() == "/show-context":
                     self.show_context()
