@@ -3,13 +3,12 @@
 import asyncio
 import contextlib
 import threading
-from pathlib import Path
 from typing import Any
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from simple_agent.config import MCPServerConfig
+from simple_agent.config import MCPServerConfig, get_config_dir
 
 
 class MCPServerManager:
@@ -103,8 +102,8 @@ class MCPServerManager:
         config = self.servers_config[server_name]
 
         # Create log file for this server's stderr
-        log_dir = Path.home() / ".simple-agent"
-        log_dir.mkdir(exist_ok=True)
+        log_dir = get_config_dir()
+        log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / f"mcp-{server_name}.log"
         log_file = log_path.open("a")  # noqa: SIM115
         self._log_files[server_name] = log_file

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from simple_agent.config import get_config_dir
 from simple_agent.context.schema import ContextEntry, ContextStore, ContextType
 
 
@@ -19,11 +20,11 @@ class ContextManager:
         """Initialize the context manager.
 
         Args:
-            storage_path: Path to context.json file. Defaults to ~/.simple-agent/context.json
+            storage_path: Path to context.json file. Defaults to .simple-agent/context.json
             max_age_days: Maximum age of context entries in days before auto-cleanup
         """
         if storage_path is None:
-            storage_path = Path.home() / ".simple-agent" / "context.json"
+            storage_path = get_config_dir() / "context.json"
 
         self.storage_path = storage_path
         self.max_age_days = max_age_days

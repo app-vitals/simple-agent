@@ -110,8 +110,8 @@ nano .env
 To enable integrations with external services via Model Context Protocol:
 
 ```bash
-# Create MCP server configuration
-nano ~/.simple-agent/mcp_servers.json
+# Create MCP server configuration in your project directory
+nano .simple-agent/mcp_servers.json
 ```
 
 Example configuration:

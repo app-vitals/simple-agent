@@ -1,9 +1,9 @@
 """Message persistence for conversation history."""
 
 import json
-from pathlib import Path
 from typing import Any
 
+from simple_agent.config import get_config_dir
 from simple_agent.display import display_warning
 
 
@@ -16,7 +16,7 @@ class MessageStorage:
         Args:
             max_messages: Maximum number of messages to store (default: 50)
         """
-        self.storage_path = Path.home() / ".simple-agent" / "messages.json"
+        self.storage_path = get_config_dir() / "messages.json"
         self.max_messages = max_messages
         self._ensure_storage_exists()
 

@@ -13,6 +13,15 @@ from simple_agent.display import display_warning
 load_dotenv()
 
 
+def get_config_dir() -> Path:
+    """Get the configuration directory for Simple Agent.
+
+    Returns:
+        Path to .simple-agent in current working directory
+    """
+    return Path.cwd() / ".simple-agent"
+
+
 class LLMConfig(BaseModel):
     """LLM configuration settings."""
 
@@ -53,12 +62,12 @@ class Config(BaseModel):
 
 
 def load_mcp_config() -> dict[str, MCPServerConfig]:
-    """Load MCP server configuration from ~/.simple-agent/mcp_servers.json if it exists.
+    """Load MCP server configuration from .simple-agent/mcp_servers.json if it exists.
 
     Returns:
         Dictionary of MCP server configurations
     """
-    config_dir = Path.home() / ".simple-agent"
+    config_dir = get_config_dir()
     config_path = config_dir / "mcp_servers.json"
 
     if not config_path.exists():

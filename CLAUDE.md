@@ -58,7 +58,7 @@ The context system automatically builds user work context:
    - Stores facts in ContextManager with appropriate types
 
 2. **Context Manager (context/manager.py)**:
-   - Disk-based JSON storage at `~/.simple-agent/context.json`
+   - Disk-based JSON storage at `.simple-agent/context.json`
    - Auto-cleanup of entries older than 7 days
    - Context types: MANUAL, FILE, CALENDAR, TASK, TIME_TRACKING, GOAL
 
@@ -80,7 +80,7 @@ Tools are registered globally via `tools/registry.py`:
 **Model Context Protocol** enables pluggable external integrations:
 
 1. **MCP Manager (tools/mcp/manager.py)**:
-   - Loads config from `~/.simple-agent/mcp_servers.json`
+   - Loads config from `.simple-agent/mcp_servers.json`
    - Starts MCP server processes (stdio communication)
    - Manages server lifecycle (async via asyncio)
 
@@ -97,7 +97,7 @@ Tools are registered globally via `tools/registry.py`:
 ### Message Management
 
 **MessageManager (messages/manager.py)**:
-- Automatic persistence to `~/.simple-agent/messages.json`
+- Automatic persistence to `.simple-agent/messages.json`
 - Stores up to 50 messages (configurable)
 - `build_for_llm()` prepends dynamic system prompt
 - Loaded on startup to resume conversations
@@ -150,7 +150,7 @@ MCP tools are discovered at startup:
 
 ## File Locations
 
-User data stored in `~/.simple-agent/`:
+User data stored in `.simple-agent/` (in current working directory):
 - `context.json` - Extracted context facts
 - `messages.json` - Conversation history
 - `mcp_servers.json` - MCP server configuration
