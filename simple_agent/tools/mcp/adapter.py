@@ -85,6 +85,7 @@ class MCPToolAdapter:
             parameters=parameters,
             returns="Tool execution result",
             requires_confirmation=True,
+            format_result=lambda content: "[dim]✓ Tool executed[/dim]",
         )
 
     def _convert_input_schema(self, input_schema: dict[str, Any]) -> dict[str, Any]:

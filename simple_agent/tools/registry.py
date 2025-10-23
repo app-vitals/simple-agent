@@ -43,6 +43,7 @@ def register(
     confirmation_handler: (
         Callable[[str, dict[str, Any], Callable[[str], str]], bool] | None
     ) = None,
+    format_result: Callable[[str], str] | None = None,
 ) -> None:
     """Register a tool function with the registry.
 
@@ -57,6 +58,8 @@ def register(
             If provided, this function will be called instead of the default confirmation
             prompt. It should take the tool name, tool arguments, and an input function,
             and return True if the user confirms, False otherwise.
+        format_result: Optional function to format the tool result for display
+            Takes the raw result string and returns a formatted string for display
     """
     TOOLS[name] = {
         "function": function,
@@ -65,7 +68,23 @@ def register(
         "returns": returns,
         "requires_confirmation": requires_confirmation,
         "confirmation_handler": confirmation_handler,
+        "format_result": format_result,
     }
+
+
+def get_format_result(tool_name: str) -> Callable[[str], str] | None:
+    """Get the format_result function for a tool.
+
+    Args:
+        tool_name: Name of the tool
+
+    Returns:
+        Format result function if registered, None otherwise
+    """
+    tool_info = TOOLS.get(tool_name)
+    if tool_info:
+        return tool_info.get("format_result")
+    return None
 
 
 def get_tool_descriptions() -> list[dict[str, Any]]:

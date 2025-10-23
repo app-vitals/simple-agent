@@ -111,6 +111,35 @@ def execute_command(command: str) -> tuple[str, str, int]:
         return "", str(e), 1
 
 
+def format_execute_command_result(content: str) -> str:
+    """Format execute_command result for display.
+
+    Args:
+        content: Raw result string (tuple representation)
+
+    Returns:
+        Formatted string for display
+    """
+    import ast
+
+    try:
+        # Parse the tuple string: (stdout, stderr, returncode)
+        result = ast.literal_eval(content)
+        if isinstance(result, tuple) and len(result) == 3:
+            stdout, stderr, returncode = result
+            # Display stdout if present
+            if stdout:
+                return f"[dim]{stdout.rstrip()}[/dim]"
+            # Display stderr if present
+            elif stderr:
+                return f"[red]{stderr.rstrip()}[/red]"
+    except (ValueError, SyntaxError):
+        pass
+
+    # Fallback to raw content
+    return f"[dim]{content}[/dim]"
+
+
 # Register this tool with the registry
 register(
     name="execute_command",
@@ -124,4 +153,5 @@ register(
     },
     returns="Tuple containing (stdout, stderr, return_code)",
     requires_confirmation=True,  # Modifies the system
+    format_result=format_execute_command_result,
 )

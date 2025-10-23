@@ -158,13 +158,16 @@ class CLI:
     def __init__(
         self,
         process_input_callback: Callable[[str], None],
+        on_start_callback: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the CLI.
 
         Args:
             process_input_callback: Callback for processing user input
+            on_start_callback: Optional callback to run after splash screen
         """
         self.process_input = process_input_callback
+        self.on_start_callback = on_start_callback
         self.mode = CLIMode.NORMAL
 
         # Set up prompt style
@@ -302,6 +305,10 @@ class CLI:
         console.print(
             Padding(f"[bold white]{welcome_message}[/bold white]", (0, 0, 0, 2))
         )
+
+        # Call on_start_callback after splash screen (if provided)
+        if self.on_start_callback:
+            self.on_start_callback()
 
         while True:
             try:

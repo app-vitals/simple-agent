@@ -1,6 +1,7 @@
 """Core agent loop implementation."""
 
 import contextlib
+import json
 import threading
 import time
 from collections.abc import Callable
@@ -17,13 +18,15 @@ from simple_agent.display import (
     display_info,
     display_status_message,
     display_warning,
+    format_tool_args,
     print_with_padding,
 )
-from simple_agent.live_console import live_context, set_stage_message
+from simple_agent.live_console import console, live_context, set_stage_message
 from simple_agent.llm.client import LLMClient
 from simple_agent.messages import MessageManager
 from simple_agent.tools.mcp.adapter import MCPToolAdapter
 from simple_agent.tools.mcp.manager import MCPServerManager
+from simple_agent.tools.registry import get_format_result
 
 SYSTEM_PROMPT = """You are Simple Agent, a command line execution efficiency assistant built on Unix philosophy principles.
 
@@ -143,6 +146,81 @@ class Agent:
 
         return prompt
 
+    def _display_loaded_messages(self) -> None:
+        """Display previously loaded conversation messages on startup."""
+        if len(self.messages) == 0:
+            return
+
+        # Show count of loaded messages
+        message_count = len(self.messages)
+        display_info(f"Resuming conversation ({message_count} messages loaded)\n")
+
+        # Display each message
+        prev_role = None
+        for msg in self.messages.get_all():
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+
+            # Add spacing between different message types
+            # Exception: no spacing between assistant (with tool calls) and tool results
+            should_add_spacing = prev_role is not None and prev_role != role
+            if should_add_spacing and not (prev_role == "assistant" and role == "tool"):
+                print_with_padding("", newline_before=False)
+
+            if role == "user":
+                # Display user messages without padding (they already have ">")
+                console.print(f"> {content}")
+            elif role == "assistant":
+                # Check if this message has tool calls
+                tool_calls = msg.get("tool_calls")
+                if tool_calls:
+                    # Display tool calls with arguments
+                    for tool_call in tool_calls:
+                        function = tool_call.get("function", {})
+                        tool_name = function.get("name", "unknown")
+                        arguments_str = function.get("arguments", "{}")
+
+                        # Parse arguments and format them
+                        try:
+                            args = json.loads(arguments_str)
+                            args_formatted = format_tool_args(**args)
+                            print_with_padding(
+                                f"[cyan]{tool_name}[/cyan]({args_formatted})",
+                                newline_before=False,
+                            )
+                        except (json.JSONDecodeError, TypeError):
+                            # Fallback if arguments can't be parsed
+                            print_with_padding(
+                                f"[cyan]{tool_name}[/cyan](...)",
+                                newline_before=False,
+                            )
+                elif content:
+                    # Display assistant messages with markdown
+                    print_with_padding(Markdown(content), newline_before=False)
+            elif role == "tool":
+                # Display tool results
+                tool_content = msg.get("content", "")
+                tool_name = msg.get("name", "")
+                if tool_content:
+                    # Get the tool's format function if available
+                    format_func = get_format_result(tool_name)
+                    if format_func:
+                        formatted_result = format_func(tool_content)
+                    else:
+                        # Generic formatting: just detect errors
+                        content_lower = str(tool_content).lower()
+                        if "error" in content_lower or "failed" in content_lower:
+                            formatted_result = "[red]✗ Failed[/red]"
+                        else:
+                            formatted_result = "[dim]✓ Completed[/dim]"
+
+                    print_with_padding(formatted_result, newline_before=False)
+
+            prev_role = role
+
+        # Add final spacing
+        print_with_padding("", newline_before=False)
+
     def run(self, input_func: Callable[[str], str] | None = None) -> None:
         """Run the agent's main loop using prompt_toolkit.
 
@@ -156,6 +234,7 @@ class Agent:
         # Create CLI instance with callback to process input
         self.cli = CLI(
             process_input_callback=self._process_input,
+            on_start_callback=self._display_loaded_messages,
         )
 
         # Run the interactive prompt loop

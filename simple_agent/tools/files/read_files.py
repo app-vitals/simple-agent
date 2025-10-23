@@ -34,6 +34,39 @@ def read_files(file_paths: list[str]) -> dict[str, str | None]:
     return results
 
 
+def format_read_files_result(content: str) -> str:
+    """Format read_files result for display.
+
+    Args:
+        content: Raw result string (dict representation)
+
+    Returns:
+        Formatted string for display
+    """
+    import ast
+
+    try:
+        # Parse the dict string
+        result = ast.literal_eval(content)
+        if isinstance(result, dict):
+            # Show summary of files read (don't display file content, too verbose)
+            success_count = sum(1 for v in result.values() if v is not None)
+            total_count = len(result)
+            if success_count == total_count:
+                if total_count == 1:
+                    return "[green]✓ File read successfully[/green]"
+                else:
+                    return f"[green]✓ {total_count} files read successfully[/green]"
+            else:
+                failed_count = total_count - success_count
+                return f"[yellow]✓ {success_count}/{total_count} files read ({failed_count} failed)[/yellow]"
+    except (ValueError, SyntaxError):
+        pass
+
+    # Fallback: don't show raw content (too verbose)
+    return "[dim]✓ Files read[/dim]"
+
+
 # Register this tool with the registry
 register(
     name="read_files",
@@ -48,4 +81,5 @@ register(
     },
     returns="Dictionary mapping each file path to its content or None if an error occurred",
     requires_confirmation=False,  # Reading files doesn't modify the system
+    format_result=format_read_files_result,
 )
