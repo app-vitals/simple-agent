@@ -38,98 +38,137 @@ Instead of manual context input, we built **automatic LLM-powered context extrac
 - Context builds automatically as you work
 - Smarter extraction (understands client/project/task relationships)
 
-### Step 3: Inject Context into System Prompt
+### ✅ Step 3: Inject Context into System Prompt (COMPLETED)
 
 **Goal:** Make context available to the agent for all responses by including it in the system prompt.
 
-**Approach:** Instead of a separate tool, automatically inject recent context into the system prompt so the agent always has full awareness of the user's current work context.
+**What we built:**
+- Dynamic system prompt generation in `agent.py:_build_system_prompt()`
+- Automatic injection of recent context (24 hours)
+- Context-aware instructions for the LLM
+- Formatted context summary grouped by type
 
-**Tasks:**
-1. Create context formatter:
-   - Function to format recent context for system prompt
-   - Keep it concise (last 24 hours, max 10 items per type)
-   - Group by type for readability
+**Success Criteria (Met):**
+- ✅ Context automatically included in every request
+- ✅ Agent can reference context naturally in responses
+- ✅ No extra tool calls needed (context always available)
+- ✅ System prompt updates dynamically on each interaction
 
-2. Update system prompt dynamically:
-   - Inject context into system prompt on each request
-   - Only include if context exists (avoid empty sections)
-   - Format as bullet points for clarity
+### ✅ Step 4: External Integrations via MCP (COMPLETED)
 
-3. Add context-aware instructions:
-   - Guide agent to use context for recommendations
-   - Encourage proactive suggestions based on context
-   - Examples of how to reference context in responses
+**Goal:** Add external context sources through Model Context Protocol (MCP).
 
-**Success Criteria:**
-- User asks "what should I work on next?" → agent uses context to respond
-- Agent references recent files/tasks in responses naturally
-- Context helps with all responses, not just planning questions
-- No extra tool calls needed (context is always available)
+**What we built:**
+- MCP server manager and adapter in `tools/mcp/`
+- Dynamic tool registration from MCP servers
+- Configuration via `~/.simple-agent/mcp_servers.json`
+- Support for environment variables per server
 
-**Files to Modify:**
-- `/simple_agent/core/agent.py` - Dynamic system prompt with context injection
-- `/simple_agent/context/extractor.py` - Add method to format context for prompt (may already exist as get_recent_context_summary)
+**Integrated MCP Servers:**
+1. **Toggl** - Time tracking integration
+   - Track current time entries
+   - View time spent on tasks
+   - Historical time data
 
-### Step 4: First External Integration (Calendar)
+2. **Trello** - Board and card management
+   - View boards and cards
+   - Check card status and priorities
+   - Track project progress
 
-**Goal:** Add one real external context source to prove the pattern.
+3. **Linear** - Issue tracking
+   - View assigned issues
+   - Check sprint/cycle status
+   - Track project timelines
 
-**Tasks:**
-1. Choose calendar integration (Google Calendar or macOS Calendar)
-   - Start with simplest: macOS Calendar via command-line
-   - Alternative: Google Calendar API (more setup but more common)
+**Success Criteria (Met):**
+- ✅ MCP servers load on agent startup
+- ✅ Tools from MCP servers available to LLM
+- ✅ Agent can query Toggl, Trello, Linear via natural language
+- ✅ Context can be enriched from multiple sources
 
-2. Create calendar context source:
-   - Module: `/simple_agent/context/sources/calendar.py`
-   - Function: `fetch_calendar_context()` returns upcoming events
-   - Format: Next 3 events with time, title, duration
-
-3. Add calendar sync command: `/sync-calendar`
-   - Fetches calendar data
-   - Adds to context manager
-   - Shows what was added
-
-4. Enhance recommendations with time awareness:
-   - Include time blocks in recommendation logic
-   - Suggest tasks that fit available time
-   - Flag upcoming meetings
-
-**Success Criteria:**
-- User runs `/sync-calendar`
-- Context includes next 3 calendar events
-- "What's next" recommendations consider time availability
-- Agent suggests tasks that fit before next meeting
-
-**Files to Create:**
-- `/simple_agent/context/sources/calendar.py`
-
-**Files to Modify:**
-- `/simple_agent/cli/prompt.py` - Add `/sync-calendar` command
+**Files Created:**
+- `/simple_agent/tools/mcp/manager.py` - MCP server lifecycle
+- `/simple_agent/tools/mcp/adapter.py` - Tool adaptation layer
+- `/simple_agent/config.py` - MCP configuration loading
 
 ---
 
-## Phase 2: Multi-Source Intelligence (Future)
+## Phase 2: Enhanced Context Intelligence (Current Focus)
 
-**Next additions after Phase 1 is working:**
+**Building on completed Phase 1 foundation:**
 
-1. **Jira Integration**
-   - Fetch assigned tickets
-   - Include sprint information
-   - Priority and status awareness
+### Organic Context Building (Current Approach)
 
-2. **Linear Integration**
-   - Similar to Jira
-   - Fetch issues, projects, cycles
+**Philosophy:** Let context build naturally through user interactions rather than explicit sync.
 
-3. **Git Context**
-   - Recent commits
-   - Open PRs
-   - Branch status
+**How it works:**
+- User asks: "What's on my Toggl timer?" → LLM calls MCP tool → Response extracted to context
+- User asks: "Show my Linear issues" → LLM calls MCP tool → Issues extracted to context
+- User asks: "What should I work on next?" → Agent references accumulated context
 
-4. **Automatic Context Refresh**
-   - Background context updates
-   - Configurable sync intervals
-   - Smart caching
+**Benefits:**
+- No background sync complexity
+- Context reflects what user actually cares about
+- Simpler implementation and maintenance
+- Already working via existing context extraction
+
+### Step 5: Proactive Context Gathering via System Prompt
+
+**Goal:** Guide the agent to proactively gather context when asked "what's next" using available MCP tools.
+
+**Approach:**
+- Update system prompt to encourage checking current state before recommendations
+- Agent naturally calls MCP tools (Toggl, Linear, Trello, Calendar) when needed
+- Tool responses get extracted to context automatically (existing mechanism)
+- Future "what's next" queries benefit from accumulated context
+
+**Example Flow:**
+```
+User: "What should I work on next?"
+
+Agent thinks: "I should check current context first"
+→ Calls Toggl MCP tool to see current timer
+→ Calls Linear MCP tool to see active issues
+→ Calls Calendar MCP tool to see next meetings
+→ Provides recommendation based on fresh data
+→ All responses automatically extracted to context
+
+Next time user asks: Context already available, agent references it directly
+```
+
+**Tasks:**
+1. Enhance system prompt to encourage proactive tool usage for context gathering
+2. Test that agent naturally calls MCP tools when asked "what's next"
+3. Verify tool responses get extracted to context
+4. Confirm subsequent queries use accumulated context without redundant tool calls
+
+**Success Criteria:**
+- First "what's next" query triggers context gathering via MCP tools
+- Recommendations based on real-time data
+- Subsequent queries leverage accumulated context
+- Context naturally refreshes as user interacts
+
+**Files to Modify:**
+- `/simple_agent/core/agent.py` - Enhance SYSTEM_PROMPT with context-gathering guidance
+
+### Step 6: Calendar Integration via MCP
+
+**Goal:** Add time-awareness through calendar integration.
+
+**Approach:**
+- Use existing MCP Google Calendar server (available)
+- Add to `mcp_servers.json` configuration
+- Integrate with context sync
+
+**Tasks:**
+1. Add Google Calendar MCP server to config
+2. Include calendar in context sync
+3. Extract upcoming events as CALENDAR context type
+
+**Additional MCP Integrations to Consider:**
+- Git/GitHub MCP server (recent commits, PRs, branch status)
+- Slack MCP server (communication context)
+- File system watcher (automatic FILE context from edits)
 
 ---
 
@@ -137,45 +176,71 @@ Instead of manual context input, we built **automatic LLM-powered context extrac
 
 **After daily efficiency is solid:**
 
-1. **Goal Definition**
-   - Add `/set-goal` command
-   - Goal storage (JSON file)
-   - Goal categories
+### Goal Inference and Tracking
 
-2. **Progress Tracking**
-   - Milestone definitions
-   - Progress calculation
-   - Status reporting
+**Approach:** Infer goals from existing documents (vision.md, plan.md, roadmaps) and confirm with user.
 
-3. **Proactive Suggestions**
-   - Detect goal-related opportunities
-   - Nudge on stalled goals
-   - Celebrate progress
+**Flow:**
+```
+User: "What are my goals?"
+
+Agent:
+→ Reads vision.md, plan.md, README.md
+→ Infers potential goals from content
+→ Proposes goals with milestones
+→ Asks for user confirmation
+
+Agent: "Based on your documents, I see these goals:
+1. Ship Phase 2 context enhancements (milestone: Step 5 complete by end of week)
+2. Reach 90% test coverage (currently 88%)
+3. Add calendar integration (blocked by: finding MCP server)
+
+Should I track these? Any adjustments?"
+
+User confirms → Goals stored as GOAL context type
+```
+
+**Commands:**
+1. **Implicit goal inference** - Agent reads files to understand goals
+2. **`/set-goal`** - Explicitly define a goal with milestones (with confirmation)
+3. **`/track-goal`** - View goal progress and milestones
+4. **Goal context** - Stored like other context, included in system prompt
+
+**Storage:**
+- Goals stored in `context.json` as GOAL type
+- Milestones as metadata on goal entries
+- Progress tracked by checking file changes, commits, context entries
+
+**Proactive Suggestions:**
+- When working on related files, agent suggests: "This relates to your goal X"
+- Detects opportunities: "Your recent work would help with milestone Y"
+- Gentle nudges: "No progress on goal Z in 2 weeks, want to make time for it?"
 
 ---
 
-## Implementation Order
+## Implementation Timeline
 
-### Week 1: Core Context System
-- [ ] Step 1: Context system foundation
-- [ ] Step 2: Manual context input
-- [ ] Test: Can add/view/clear context manually
+### ✅ Phase 1: Foundation (COMPLETED)
+- ✅ Step 1: Context system foundation
+- ✅ Step 2: Dynamic LLM-based context extraction
+- ✅ Step 3: Context injection into system prompt
+- ✅ Step 4: MCP integration layer with Toggl, Trello, Linear
 
-### Week 2: First Recommendations
-- [ ] Step 3: "What's next" tool
-- [ ] Test: Get recommendations from manual context
-- [ ] Validate: Is this actually useful?
+### Phase 2: Enhanced Intelligence (Current)
+- [ ] Step 5: Enhanced MCP tool response extraction
+  - [ ] Review extraction quality with MCP tools
+  - [ ] Improve context type detection for MCP responses
+  - [ ] Test organic context building from MCP interactions
+- [ ] Step 6: Calendar integration via MCP
+  - [ ] Add Google Calendar MCP server
+  - [ ] Test time-aware recommendations
+  - [ ] Verify calendar context extraction
 
-### Week 3: First Integration
-- [ ] Step 4: Calendar integration
-- [ ] Test: Time-aware recommendations
-- [ ] Validate: Does calendar context improve recommendations?
-
-### Week 4+: Iterate
-- Assess value and usage
-- Decide on next integration (Jira vs Linear vs Git)
-- Consider automatic refresh vs manual sync
-- Plan Phase 2 based on learnings
+### Phase 3: Long-term Goals (Future)
+- [ ] Goal inference from existing documents
+- [ ] `/set-goal` and `/track-goal` commands with confirmation
+- [ ] Goal progress tracking via file/commit analysis
+- [ ] Proactive goal-related suggestions
 
 ---
 
@@ -208,16 +273,16 @@ Instead of manual context input, we built **automatic LLM-powered context extrac
 ### Keep It Simple
 
 - **Simple storage**: JSON file at `~/.simple-agent/context.json` (no database)
-- **No API servers**: Direct integration calls
-- **No background processes**: Manual sync commands only
+- **MCP-based integrations**: No custom API clients, use MCP servers
+- **Organic context building**: No background sync, context builds through natural interactions
 - **Minimal config**: Reuse existing `~/.simple-agent/` directory
 
 ### Make It Easy to Extend
 
-- **Source pattern**: Each integration is a module in `context/sources/`
-- **Registry pattern**: Context sources register like tools
+- **MCP pattern**: Add new integrations by configuring MCP servers
+- **Context extraction**: LLM automatically extracts facts from tool responses
 - **Typed schemas**: Use Pydantic for all context data
-- **Test each source**: Unit tests for each integration
+- **Test each feature**: Unit tests for context extraction and sync
 
 ### Migration Path
 
@@ -235,44 +300,75 @@ No breaking changes needed.
 
 ## Success Indicators
 
-After Phase 1, we should be able to:
+### ✅ Phase 1 Achievements (Current State)
 
-1. **Add context from multiple sources:**
+1. **Automatic context extraction from interactions:**
+   - ✅ Context builds automatically as user works
+   - ✅ File operations, tool calls extracted to context
+   - ✅ View context with `/show-context`, clear with `/clear-context`
+
+2. **Context-aware conversations:**
+   - ✅ System prompt includes recent context (24h)
+   - ✅ Agent references previous work naturally
+   - ✅ MCP tools (Toggl, Trello, Linear) available on-demand
+
+3. **Core capabilities retained:**
+   - ✅ File operations (read, write, patch)
+   - ✅ Command execution
+   - ✅ Interactive CLI with rich features
+
+### Phase 2 Target (Next)
+
+1. **Organic context building through interactions:**
    ```
-   > /context working on API refactor PR #234
-   > /sync-calendar
+   > What's on my Toggl timer?
+   [Agent calls MCP tool, shows result, context extracted automatically]
+
+   > What Linear issues do I have?
+   [Agent calls MCP tool, shows issues, context extracted automatically]
+
+   > What should I work on next?
+   [Agent uses accumulated context from previous interactions]
+   ```
+
+2. **Context-enriched recommendations:**
+   ```
    > what should I work on next?
-   ```
 
-2. **Get intelligent recommendations:**
-   ```
-   Agent: "You have 90 minutes before your 2pm standup.
+   Agent: "Based on your context:
+   - You have 90 minutes before standup (calendar)
+   - Already spent 2h 15m on API refactor today (Toggl)
+   - Linear sprint ends in 2 days with 3 tickets left
+   - Urgent Trello card: Deploy v2.0
 
-   Recommendation: Complete API refactor PR #234 review.
+   Recommendation: Switch to Linear ticket ENG-456 (auth bug)
 
    Reasoning:
-   - You mentioned working on this (context)
-   - Reviews typically take 45-60 minutes
-   - Fits comfortably in your available time
-   - Keeps momentum on current focus area
-
-   After standup, you'll have 3 hours before your next meeting
-   for deeper work."
+   - Sprint deadline approaching
+   - You've hit context-switch point on API work
+   - 90 min is enough to make meaningful progress
+   - Unblocks deployment (Trello dependency)"
    ```
 
-3. **Still use file/command tools:**
-   ```
-   > read the API refactor PR diff
-   > edit src/api/routes.py and add rate limiting
-   ```
-
-The assistant becomes context-aware and proactive while maintaining all existing capabilities.
+The assistant becomes truly context-aware and proactive through MCP integrations.
 
 ---
 
 ## Next Actions
 
-1. Review this plan
-2. Confirm Phase 1 approach
-3. Begin Step 1: Context system foundation
-4. Iterate based on feedback
+**Immediate (Phase 2, Step 5):**
+1. Test current context extraction with MCP tools
+2. Enhance `_determine_context_type()` for MCP-specific patterns
+3. Verify organic context building through natural interactions
+4. Validate that accumulated context improves "what's next" recommendations
+
+**Near-term (Phase 2, Step 6):**
+1. Add Google Calendar MCP server to configuration
+2. Test time-aware recommendations with calendar data
+3. Verify calendar events extracted to context
+
+**Future (Phase 3):**
+1. Implement goal inference from documents (vision.md, plan.md, etc.)
+2. Add `/set-goal` with user confirmation for inferred goals
+3. Implement `/track-goal` for progress visibility
+4. Add proactive goal suggestions based on current work

@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/app-vitals/simple-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/app-vitals/simple-agent/actions/workflows/ci.yml)
 
-A CLI AI agent built on Unix philosophies that provides AI assistance through a natural command-line interface.
+An **execution efficiency assistant** that helps you optimize daily task execution through context-aware AI guidance. Built on Unix philosophy principles with a clean command-line interface.
+
+Ask "what should I work on next?" and get intelligent recommendations based on your current work context, time tracking, task boards, and calendar.
 
 ## Guiding Principles
 
@@ -21,17 +23,34 @@ Additional agent interaction principles:
 
 ## Features
 
-- Natural AI-first interaction - just type your request
-- Enhanced interactive CLI with prompt_toolkit
-  - Command completion with Tab
-  - Multi-line input support with backslash continuation
-  - History navigation with arrow keys
-  - Syntax highlighting and styled output
-- Slash commands for system operations (`/help`, `/exit`, `/clear`)
-- Command execution and file operations with user confirmation
-- Stateful conversation context management
-- Tool-based interface with explicit permission model
+### Core Capabilities
+- **Context-Aware Assistance** - Automatically remembers your work context (files, tasks, time tracking)
+- **Intelligent Recommendations** - Ask "what should I work on next?" for prioritization help
+- **Natural Interaction** - Just type your request in plain language
+- **File Operations** - Read, write, and edit files with AI assistance
+- **Command Execution** - Run shell commands with confirmation
+
+### Context & Integrations
+- **Automatic Context Extraction** - Learns from your interactions to build context
+- **MCP Integration Support** - Connect to external services via Model Context Protocol
+  - Time tracking services
+  - Task management tools
+  - Calendar applications
+  - Issue trackers
+  - Any MCP-compatible service
+
+### Interactive CLI
+- Command completion with Tab
+- Multi-line input support with backslash continuation
+- History navigation with arrow keys
+- Syntax highlighting and styled output
+- Slash commands: `/help`, `/exit`, `/clear`, `/show-context`, `/clear-context`
+
+### Technical
 - Claude API integration via LiteLLM
+- Stateful conversation management
+- Tool-based architecture with explicit permissions
+- 88%+ test coverage
 
 ## Development
 
@@ -76,6 +95,8 @@ uv pip install -e .
 
 ## Configuration
 
+### Basic Configuration
+
 ```bash
 # Configure environment variables
 cp .env.example .env
@@ -83,6 +104,30 @@ cp .env.example .env
 # Edit .env with your API key
 nano .env
 ```
+
+### MCP Server Configuration (Optional)
+
+To enable integrations with external services via Model Context Protocol:
+
+```bash
+# Create MCP server configuration
+nano ~/.simple-agent/mcp_servers.json
+```
+
+Example configuration:
+
+```json
+{
+  "server-name": {
+    "command": "mcp-server-command",
+    "env": {
+      "API_KEY": "your_api_key_here"
+    }
+  }
+}
+```
+
+Simple Agent can integrate with any MCP-compatible server for time tracking, task management, calendars, issue trackers, and more. See [vision.md](vision.md) for details.
 
 ## Running Simple Agent
 
@@ -101,23 +146,48 @@ python -m simple_agent
 
 ## Example Interactions
 
-```
-> Tell me about the Unix philosophy
-The Unix philosophy is a set of design principles that emphasizes building simple, 
-modular programs that do one thing well and work together through standard interfaces.
+### Execution Efficiency
 
-> Write a function that calculates fibonacci numbers \
-  recursively in Python
-[Function definition with docstring and implementation]
+```
+> what should I work on next?
+
+Based on your context:
+- You have 90 minutes before your next meeting
+- Currently working on API refactor (context from recent files)
+- Sprint ends in 2 days with 3 tickets remaining
+- One urgent task flagged in your task management system
+
+Recommendation: Focus on ticket ENG-456 (auth bug - high priority)
+
+Reasoning:
+- Sprint deadline approaching
+- Task fits your available time block
+- Unblocks other team members
+```
+
+### File Operations & Code Assistance
+
+```
+> Read src/main.py and suggest improvements
+
+[Analyzes file and provides recommendations]
+
+> Write a function that calculates fibonacci numbers recursively
+
+[Provides implementation with docstring]
+```
+
+### Context Management
+
+```
+> /show-context
+[Displays recent work context and integrations]
+
+> /clear-context
+[Clears stored context]
 
 > /help
-[Shows command help and usage information]
-
-> /clear
-[Clears the terminal screen]
-
-> /exit
-[Exits the agent]
+[Shows all available commands]
 ```
 
-Try pressing Tab to complete commands and use Up/Down arrows to navigate through command history.
+Press Tab for command completion and use arrow keys for history navigation.

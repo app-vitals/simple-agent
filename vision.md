@@ -18,11 +18,12 @@ Transform Simple Agent from a general-purpose CLI assistant into a specialized *
 Help determine the highest-priority next action based on comprehensive context:
 
 **Context Sources:**
-- Calendar events and time availability
-- Jira tickets and sprint status
-- Linear issues and project boards
-- Project timelines and deadlines
+- Calendar events and time availability (via MCP)
+- Linear issues and project boards (via MCP - integrated)
+- Trello boards and cards (via MCP - integrated)
+- Toggl time tracking entries (via MCP - integrated)
 - Recent work context (files edited, commits, PRs)
+- Project timelines and deadlines
 - Communication context (Slack threads, email priorities)
 
 **Core Capabilities:**
@@ -41,14 +42,18 @@ Help determine the highest-priority next action based on comprehensive context:
 User: "What should I work on next?"
 
 Agent: "Based on your context:
-- You have 2 hours before your 2pm standup
-- The API refactor PR (#234) is blocking 2 teammates
-- Your Linear sprint ends in 2 days with 3 tickets remaining
+- You have 2 hours before your 2pm standup (calendar)
+- Your Toggl tracker shows 3.5 hours on the API refactor today
+- Linear sprint ends in 2 days with 3 tickets remaining
+- Trello card "Deploy v2.0" is marked urgent
 
-Recommendation: Focus on PR #234 review and merge (30 min),
-then start Linear ticket ENG-456 (auth bug - high priority, 90 min est.)
+Recommendation: Focus on Linear ticket ENG-456 (auth bug - high priority, 90 min est.)
 
-This unblocks the team and addresses your highest-priority bug before sprint end."
+Reasoning:
+- You've already invested time in API refactor (Toggl context)
+- Sprint deadline is approaching (Linear context)
+- Auth bug fits your remaining time block
+- Deployment can wait until after sprint closes (Trello context)"
 ```
 
 ### 2. Long-term Execution Efficiency
@@ -139,10 +144,16 @@ Keep what works from Simple Agent:
 ### New Components
 
 **Context System:**
-- Context aggregation layer
-- Integration connectors (Calendar, Jira, Linear, etc.)
-- Context storage and retrieval
+- Context aggregation layer via automatic LLM extraction
+- Context storage and retrieval (disk-based JSON)
+- Context injection into system prompt
 - Context relevance scoring
+
+**MCP Integration Layer:**
+- Model Context Protocol (MCP) server support
+- Pluggable external integrations (Toggl, Trello, Linear, Calendar)
+- Tools dynamically registered from MCP servers
+- Extensible to any MCP-compatible service
 
 **Goal Management:**
 - Goal definition and storage
@@ -151,16 +162,16 @@ Keep what works from Simple Agent:
 - Success metrics
 
 **Recommendation Engine:**
-- Priority scoring algorithm
-- Time-awareness (calendar integration)
+- LLM-based prioritization with reasoning
+- Time-awareness (time tracking + calendar integration)
 - Dependency analysis
 - Energy/complexity matching
 
-**Proactive Monitoring:**
-- Background context updates
-- Goal progress checks
-- Opportunity detection
-- Reminder system
+**Proactive Intelligence:**
+- Agent-driven context gathering using available tools
+- Goal inference from existing documents
+- Opportunity detection from work patterns
+- Progress awareness and gentle nudges
 
 ## Implementation Philosophy
 
@@ -172,9 +183,9 @@ Keep what works from Simple Agent:
 - Manual context refresh
 
 **Phase 2: Intelligence**
-- Multi-source context integration
+- Multi-source context via MCP tools
 - Smart prioritization with reasoning
-- Automatic context updates
+- Organic context building through natural interaction
 
 **Phase 3: Proactive**
 - Goal tracking and progress
