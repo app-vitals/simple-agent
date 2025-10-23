@@ -52,7 +52,7 @@ You have the following tools available to assist users:
 For efficiency, always batch your file reads by using read_files with multiple file paths when you need to examine several files.
 
 Context System:
-- Users can add context via /context command (you'll see this in conversation)
+- Context is automatically extracted from user interactions and tool usage
 - Context includes: manual notes, calendar events, tasks, time tracking, files worked on
 - When asked "what should I work on next?" or similar, consider all available context
 - Provide reasoning based on time availability, priorities, and current focus
