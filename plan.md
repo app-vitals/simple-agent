@@ -1,374 +1,462 @@
-# Plan: First Steps Toward Execution Assistant
+# Plan: Context-First Execution Assistant
 
 ## Objective
 
-Implement the minimal viable transformation from Simple Agent to Execution Efficiency Assistant. Focus on **Daily Execution Efficiency** use case first.
+Build a sustainable, context-aware execution assistant through **structured context representation** and **interactive compression workflows**. Focus on token efficiency and human-readable context.
 
-## Guiding Principle
+## Core Insight
 
-**Start with the simplest possible version that provides value:** Manual context gathering + basic "what's next" recommendation.
+After real-world usage, we discovered:
+- **Atomic fact extraction creates noise, not signal** (107 entries from one conversation)
+- **Context files larger than source messages** (28KB context from 22KB messages)
+- **Lost strategic thinking and relationships** when atomized
+- **No compression mechanism** → linear token growth
 
----
-
-## Phase 1: Foundation
-
-### ✅ Step 1: Context System Foundation (COMPLETED)
-
-Built a disk-based context storage system with automatic cleanup.
-
-**What we built:**
-- Context manager with JSON persistence at `~/.simple-agent/context.json`
-- Context types: MANUAL, FILE, CALENDAR, TASK, TIME_TRACKING, GOAL
-- Auto-cleanup of entries older than 7 days
-- Full test coverage (13 tests)
-
-### ✅ Step 2: Dynamic Context Extraction (COMPLETED)
-
-Instead of manual context input, we built **automatic LLM-powered context extraction**.
-
-**What we built:**
-- Context extraction prompt inspired by mem0
-- Extracts facts from user messages and tool calls automatically
-- Runs after each agent interaction
-- Slash commands: `/show-context`, `/clear-context`
-- 20 new tests, 91.65% coverage
-
-**This is better than the original plan** because:
-- No manual effort required
-- Context builds automatically as you work
-- Smarter extraction (understands client/project/task relationships)
-
-### ✅ Step 3: Inject Context into System Prompt (COMPLETED)
-
-**Goal:** Make context available to the agent for all responses by including it in the system prompt.
-
-**What we built:**
-- Dynamic system prompt generation in `agent.py:_build_system_prompt()`
-- Automatic injection of recent context (24 hours)
-- Context-aware instructions for the LLM
-- Formatted context summary grouped by type
-
-**Success Criteria (Met):**
-- ✅ Context automatically included in every request
-- ✅ Agent can reference context naturally in responses
-- ✅ No extra tool calls needed (context always available)
-- ✅ System prompt updates dynamically on each interaction
-
-### ✅ Step 4: External Integrations via MCP (COMPLETED)
-
-**Goal:** Add external context sources through Model Context Protocol (MCP).
-
-**What we built:**
-- MCP server manager and adapter in `tools/mcp/`
-- Dynamic tool registration from MCP servers
-- Configuration via `~/.simple-agent/mcp_servers.json`
-- Support for environment variables per server
-
-**Integrated MCP Servers:**
-1. **Toggl** - Time tracking integration
-   - Track current time entries
-   - View time spent on tasks
-   - Historical time data
-
-2. **Trello** - Board and card management
-   - View boards and cards
-   - Check card status and priorities
-   - Track project progress
-
-3. **Linear** - Issue tracking
-   - View assigned issues
-   - Check sprint/cycle status
-   - Track project timelines
-
-**Success Criteria (Met):**
-- ✅ MCP servers load on agent startup
-- ✅ Tools from MCP servers available to LLM
-- ✅ Agent can query Toggl, Trello, Linear via natural language
-- ✅ Context can be enriched from multiple sources
-
-**Files Created:**
-- `/simple_agent/tools/mcp/manager.py` - MCP server lifecycle
-- `/simple_agent/tools/mcp/adapter.py` - Tool adaptation layer
-- `/simple_agent/config.py` - MCP configuration loading
+**Solution:** Manual compression workflow that preserves narrative, uses structured markdown, and dramatically reduces tokens.
 
 ---
 
-## Phase 2: Enhanced Context Intelligence (Current Focus)
+## Phase 1: Context Representation & Compression (Current Focus)
 
-**Building on completed Phase 1 foundation:**
+### ✅ MCP Foundation (COMPLETED)
 
-### Organic Context Building (Current Approach)
+We already have working MCP integration:
+- Toggl (time tracking)
+- Trello (boards and cards)
+- Linear (issue tracking)
+- Dynamic tool registration
+- MCP configuration at `.simple-agent/mcp_servers.json`
 
-**Philosophy:** Let context build naturally through user interactions rather than explicit sync.
+**Keep this.** MCP works great for pulling external context when needed.
 
-**How it works:**
-- User asks: "What's on my Toggl timer?" → LLM calls MCP tool → Response extracted to context
-- User asks: "Show my Linear issues" → LLM calls MCP tool → Issues extracted to context
-- User asks: "What should I work on next?" → Agent references accumulated context
+### Step 1: Markdown Context Structure
 
-**Benefits:**
-- No background sync complexity
-- Context reflects what user actually cares about
-- Simpler implementation and maintenance
-- Already working via existing context extraction
+**Goal:** Replace JSON context with human-readable, structured markdown.
 
-### Step 5: Proactive Context Gathering via System Prompt
-
-**Goal:** Guide the agent to proactively gather context when asked "what's next" using available MCP tools.
-
-**Approach:**
-- Update system prompt to encourage checking current state before recommendations
-- Agent naturally calls MCP tools (Toggl, Linear, Trello, Calendar) when needed
-- Tool responses get extracted to context automatically (existing mechanism)
-- Future "what's next" queries benefit from accumulated context
-
-**Example Flow:**
+**File Structure:**
 ```
-User: "What should I work on next?"
+~/src/<project>/
+├── context/                    # Visible, editable context
+│   ├── business.md            # Clients, team, revenue
+│   ├── strategy.md            # Positioning, decisions, tradeoffs
+│   ├── goals.md               # Immediate → mid-term → long-term
+│   └── decisions.md           # Key decisions with reasoning
+├── context-archive/           # Session archives
+│   └── 2025-10-23-initial-context.md
+└── .simple-agent/             # Hidden implementation
+    ├── messages.json          # Current session only
+    └── mcp_servers.json       # MCP configuration
+```
 
-Agent thinks: "I should check current context first"
-→ Calls Toggl MCP tool to see current timer
-→ Calls Linear MCP tool to see active issues
-→ Calls Calendar MCP tool to see next meetings
-→ Provides recommendation based on fresh data
-→ All responses automatically extracted to context
+**Goals Structure with Temporal Tracking:**
+```markdown
+# Goals
 
-Next time user asks: Context already available, agent references it directly
+## Immediate (Next 2 months)
+- [ ] API v2 integration complete
+  - Started: September 2025
+  - Deadline: October 30, 2025
+  - Elapsed: 3 weeks / 8 weeks (38%)
+  - Status: Finishing up, deadline next week
+
+## Mid-term (6 months)
+- [ ] Launch product v2.0 by Q1 2026
+  - Started: September 2025
+  - Deadline: March 2026
+  - Elapsed: 2 months / 6 months (33%)
+  - Progress: 4/10 features complete (40%)
+  - Remaining: 6 features in 4 months
+
+## Long-term (1-3 years)
+- [ ] Reach 100K users
+- [ ] Expand to 3 new markets
 ```
 
 **Tasks:**
-1. Enhance system prompt to encourage proactive tool usage for context gathering
-2. Test that agent naturally calls MCP tools when asked "what's next"
-3. Verify tool responses get extracted to context
-4. Confirm subsequent queries use accumulated context without redundant tool calls
+- [x] Remove `context/extractor.py` (auto-extraction)
+- [x] Remove `context/manager.py` or simplify to file I/O only
+- [x] Remove auto-extraction background thread from `agent.py`
+- [ ] Create context file templates (business, strategy, goals, decisions)
+- [ ] Update agent startup to read `context/*.md` files
+- [ ] Inject markdown context into system prompt
 
 **Success Criteria:**
-- First "what's next" query triggers context gathering via MCP tools
-- Recommendations based on real-time data
-- Subsequent queries leverage accumulated context
-- Context naturally refreshes as user interacts
+- Context stored as markdown, not JSON
+- Files in visible `context/` directory
+- Agent reads context at startup
+- Context included in system prompt
 
-**Files to Modify:**
-- `/simple_agent/core/agent.py` - Enhance SYSTEM_PROMPT with context-gathering guidance
+### Step 2: Interactive Compression Command
 
-### Step 6: Calendar Integration via MCP
+**Goal:** Build `/compress` command that uses existing file tools (Read/Edit/Write).
 
-**Goal:** Add time-awareness through calendar integration.
+**User Flow:**
+```
+User: /compress
 
-**Approach:**
-- Use existing MCP Google Calendar server (available)
-- Add to `mcp_servers.json` configuration
-- Integrate with context sync
+Agent: "I'll compress this session to context. Reviewing conversation..."
+
+[Agent uses Read tool to load context/business.md]
+Agent: "Reading current business context..."
+
+[Agent uses Edit tool to update]
+Agent: "I'm updating the team member entry to capture new responsibilities:
+- OLD: Alex (engineer) joining in December 2025
+- NEW: [shows updated section with role details, start date, initial projects]"
+
+User: [approves change]
+
+[Agent uses Edit tool for goals.md]
+Agent: "Adding API integration deadline to context/goals.md..."
+
+[Agent uses Write tool for archive]
+Agent: "Archiving full session to context-archive/2025-10-23-project-planning.md..."
+
+[Agent clears messages.json]
+Agent: "✓ Session compressed
+✓ 3 context files updated
+✓ Session archived
+✓ Messages cleared"
+```
+
+**Compression System Prompt:**
+```markdown
+# Compression Task
+
+You are compressing a conversation session into structured context files.
+
+## Instructions
+1. Read the ENTIRE conversation history
+2. Identify:
+   - New information (clients, projects, people, decisions)
+   - Strategic thinking (options, tradeoffs, reasoning)
+   - Updates to existing context (progress, status changes)
+   - Goals (with start dates, deadlines, progress)
+   - Important decisions and rationale
+3. Organize into appropriate context files
+4. Preserve narrative and relationships
+5. Write concise but complete summaries
+
+## Context Files
+- `context/business.md` - Clients, team, revenue, operations
+- `context/strategy.md` - Positioning, market, strategic decisions
+- `context/goals.md` - Hierarchical goals with temporal tracking
+- `context/decisions.md` - Key decisions with context
+- Create new files if needed
+
+## Writing Style
+- Use headers and subheaders for hierarchy
+- Include specific details (dates, numbers, names)
+- Capture "why" not just "what"
+- Link related concepts
+- Use checkboxes for trackable items
+- Preserve uncertainty and open questions
+
+## Process
+Use existing file tools (Read, Edit, Write) to:
+1. Read current context files
+2. Edit to update existing sections
+3. Write new files or archives
+4. User approves each change interactively
+
+## User Instructions
+{optional_user_instructions}
+```
 
 **Tasks:**
-1. Add Google Calendar MCP server to config
-2. Include calendar in context sync
-3. Extract upcoming events as CALENDAR context type
+- [ ] Create compression system prompt
+- [ ] Implement `/compress [instructions]` command handler
+- [ ] Build compression workflow using Read/Edit/Write tools
+- [ ] Archive session to `context-archive/YYYY-MM-DD-topic.md`
+- [ ] Clear `messages.json` after compression
+- [ ] Add compression suggestions (e.g., after 20+ messages)
 
-**Additional MCP Integrations to Consider:**
-- Git/GitHub MCP server (recent commits, PRs, branch status)
-- Slack MCP server (communication context)
-- File system watcher (automatic FILE context from edits)
+**Success Criteria:**
+- `/compress` reviews full conversation
+- Uses Read/Edit/Write tools with user confirmation
+- Updates context files preserving narrative
+- Archives complete session
+- Clears messages for fresh start
+- 3-4x token reduction achieved
+
+### Step 3: Remove Legacy Context System
+
+**Goal:** Clean up old auto-extraction system.
+
+**Tasks:**
+- [ ] Delete `context/extractor.py`
+- [ ] Delete or simplify `context/manager.py` (if only used for file I/O, keep simplified version)
+- [ ] Remove auto-extraction call from `agent.py`
+- [ ] Remove context-specific slash commands:
+  - [ ] `/show-context` → just read `context/*.md`
+  - [ ] `/clear-context` → just edit/delete files
+  - [ ] `/sync-context` → not needed
+- [ ] Update tests to remove extraction tests
+- [ ] Keep `/clear` command for clearing messages without compression
+
+**Success Criteria:**
+- No automatic extraction after each message
+- Only manual `/compress` workflow
+- Cleaner codebase
+- Lower token costs (no extraction LLM calls)
+
+### Step 4: Project-Scoped Context
+
+**Goal:** Support different context per project directory.
+
+**Current Behavior:**
+```
+~/.simple-agent/context.json  # Global context
+```
+
+**New Behavior:**
+```
+~/src/simple-agent/context/   # Simple Agent project context
+~/src/my-startup/context/     # Business/startup context
+~/src/client-project/context/ # Client project context
+~/.simple-agent/personal.md   # Global personal context (optional)
+```
+
+**Agent Startup:**
+```python
+def load_context():
+    cwd = os.getcwd()
+
+    # Load project context from current directory
+    project_context = read_context_files(f"{cwd}/context/")
+
+    # Optionally load global context
+    global_context = read_file("~/.simple-agent/personal.md")
+
+    # Combine
+    return f"{project_context}\n\n{global_context}"
+```
+
+**Tasks:**
+- [ ] Update context loading to check `<cwd>/context/` first
+- [ ] Support global context at `~/.simple-agent/personal.md` (optional)
+- [ ] Update `/compress` to write to project-specific context
+- [ ] Document context scoping in CLAUDE.md
+
+**Success Criteria:**
+- Context scoped to current working directory
+- Different projects maintain separate context
+- Can optionally aggregate global + project context
+
+---
+
+## Phase 2: Context Intelligence
+
+### Step 5: Optimize Context Loading
+
+**Goal:** Handle large context files efficiently.
+
+**Progressive Enhancement:**
+
+**Level 1: Load Everything** (start here)
+```python
+context = read_all_context_files("context/*.md")
+# Inject full context into system prompt
+```
+
+**Level 2: Section-Based Loading** (when context > 20KB)
+```python
+sections = parse_context_sections("context/*.md")
+relevant = select_relevant_sections(sections, recent_messages)
+# Load only relevant sections, list others as available
+```
+
+**Level 3: Semantic Search** (when context > 100KB)
+```python
+relevant = semantic_search(user_query, vector_index)
+# Vector search for relevant context chunks
+```
+
+**Tasks:**
+- [ ] Monitor context file sizes
+- [ ] Implement section parsing when needed
+- [ ] Add "Available Context" listing to system prompt
+- [ ] Agent can use Read tool to load more context on demand
+
+**Success Criteria:**
+- Efficient context loading at any scale
+- Graceful degradation as context grows
+- Agent aware of what context is available
+
+### Step 6: Enhanced Compression
+
+**Goal:** Improve compression quality through iteration.
+
+**Enhancements:**
+- [ ] Interactive compression with agent questions
+  - "Should this go under 'Immediate Goals' or 'Team Decisions'?"
+  - "Is this an active decision or just context?"
+  - "Any key insights I'm missing?"
+- [ ] Compression quality metrics
+  - Measure token reduction
+  - Track context file sizes
+  - User satisfaction with compressions
+- [ ] Smart compression suggestions
+  - After major decisions
+  - After long conversations (20+ messages)
+  - When user says "that's all for now"
+
+**Tasks:**
+- [ ] Add interactive questions during compression
+- [ ] Track compression metrics
+- [ ] Implement smart suggestion triggers
+- [ ] Allow compression edits/refinements
+
+**Success Criteria:**
+- High-quality compressions preserve key insights
+- User confident in compressed context
+- Minimal information loss
+
+### Step 7: Calendar Integration (Optional)
+
+**Goal:** Add time-awareness through calendar MCP.
+
+**Approach:**
+- [ ] Add Google Calendar MCP server to config
+- [ ] Include calendar events in context when relevant
+- [ ] Extract upcoming events during compression
+- [ ] Use for "what's next" time-based recommendations
+
+**This is lower priority** - context representation is more important.
 
 ---
 
 ## Phase 3: Long-term Goals (Future)
 
-**After daily efficiency is solid:**
+### Goal Progress Tracking
 
-### Goal Inference and Tracking
+Goals are already in `context/goals.md` with temporal tracking. Future enhancements:
 
-**Approach:** Infer goals from existing documents (vision.md, plan.md, roadmaps) and confirm with user.
+- [ ] Agent proactively updates goal progress during compression
+- [ ] Detects milestone achievements
+- [ ] Suggests next steps toward goals
+- [ ] Identifies opportunities (e.g., "recent work would make a good blog post")
 
-**Flow:**
-```
-User: "What are my goals?"
+### Proactive Nudges
 
-Agent:
-→ Reads vision.md, plan.md, README.md
-→ Infers potential goals from content
-→ Proposes goals with milestones
-→ Asks for user confirmation
+Once context is stable:
 
-Agent: "Based on your documents, I see these goals:
-1. Ship Phase 2 context enhancements (milestone: Step 5 complete by end of week)
-2. Reach 90% test coverage (currently 88%)
-3. Add calendar integration (blocked by: finding MCP server)
-
-Should I track these? Any adjustments?"
-
-User confirms → Goals stored as GOAL context type
-```
-
-**Commands:**
-1. **Implicit goal inference** - Agent reads files to understand goals
-2. **`/set-goal`** - Explicitly define a goal with milestones (with confirmation)
-3. **`/track-goal`** - View goal progress and milestones
-4. **Goal context** - Stored like other context, included in system prompt
-
-**Storage:**
-- Goals stored in `context.json` as GOAL type
-- Milestones as metadata on goal entries
-- Progress tracked by checking file changes, commits, context entries
-
-**Proactive Suggestions:**
-- When working on related files, agent suggests: "This relates to your goal X"
-- Detects opportunities: "Your recent work would help with milestone Y"
-- Gentle nudges: "No progress on goal Z in 2 weeks, want to make time for it?"
+- [ ] "No progress on goal X in 2 weeks"
+- [ ] "You have 90 minutes before standup - perfect for task Y"
+- [ ] "Sprint deadline in 2 days, 3 tickets remaining"
 
 ---
 
-## Implementation Timeline
+## Success Metrics
 
-### ✅ Phase 1: Foundation (COMPLETED)
-- ✅ Step 1: Context system foundation
-- ✅ Step 2: Dynamic LLM-based context extraction
-- ✅ Step 3: Context injection into system prompt
-- ✅ Step 4: MCP integration layer with Toggl, Trello, Linear
+### Phase 1 Targets
 
-### Phase 2: Enhanced Intelligence (Current)
-- [ ] Step 5: Enhanced MCP tool response extraction
-  - [ ] Review extraction quality with MCP tools
-  - [ ] Improve context type detection for MCP responses
-  - [ ] Test organic context building from MCP interactions
-- [ ] Step 6: Calendar integration via MCP
-  - [ ] Add Google Calendar MCP server
-  - [ ] Test time-aware recommendations
-  - [ ] Verify calendar context extraction
+**Context Quality:**
+- ✅ Preserves narrative and relationships (not atomic facts)
+- ✅ Human-readable and editable
+- ✅ 3-4x more compact than message history
+- ✅ Strategic thinking captured
 
-### Phase 3: Long-term Goals (Future)
-- [ ] Goal inference from existing documents
-- [ ] `/set-goal` and `/track-goal` commands with confirmation
-- [ ] Goal progress tracking via file/commit analysis
-- [ ] Proactive goal-related suggestions
+**Token Efficiency:**
+- ✅ 20KB conversation → 5KB context
+- ✅ Fresh sessions start with minimal context
+- ✅ No auto-extraction token costs
+- ✅ Sustainable for long-term projects
 
----
+**User Experience:**
+- ✅ Visible context files (not hidden JSON)
+- ✅ Interactive compression with confirmation
+- ✅ Simple commands (`/compress`, `/clear`)
+- ✅ Natural file editing workflow
 
-## Decision Points
+### Phase 2 Targets
 
-### After Step 3 (Manual Context + Recommendations)
+**Context Intelligence:**
+- Efficient loading at any scale
+- Smart compression suggestions
+- High compression quality
+- Interactive refinement
 
-**Question:** Is manual context sufficient, or do we need integrations?
-- If manual context provides good value: slow down, polish UX
-- If context is too stale/incomplete: accelerate to Step 4
+### Phase 3 Targets
 
-### After Step 4 (Calendar Integration)
-
-**Question:** Which integration adds most value next?
-- If time-blocking is key bottleneck: focus on calendar features
-- If task selection is key bottleneck: add Jira/Linear
-- If context-switching is key bottleneck: add Git/file context
-
-### After Phase 1
-
-**Question:** Daily efficiency vs long-term goals?
-- If daily execution improved significantly: move to Phase 3
-- If still struggling with priorities: add more sources (Phase 2)
-- If integrations are too complex: simplify and polish
+**Goal Achievement:**
+- Consistent progress on goals
+- Opportunistic progress capture
+- Proactive helpful suggestions
 
 ---
 
-## Technical Notes
+## Migration Notes
 
-### Keep It Simple
+### What Changes
 
-- **Simple storage**: JSON file at `~/.simple-agent/context.json` (no database)
-- **MCP-based integrations**: No custom API clients, use MCP servers
-- **Organic context building**: No background sync, context builds through natural interactions
-- **Minimal config**: Reuse existing `~/.simple-agent/` directory
+**Removed:**
+- Auto-extraction after every message
+- `context/extractor.py`
+- Context stored in `.simple-agent/context.json`
+- Context-specific commands (`/show-context`, `/clear-context`, `/sync-context`)
 
-### Make It Easy to Extend
+**Added:**
+- Markdown context in visible `context/` directory
+- `/compress` command with interactive workflow
+- Session archiving to `context-archive/`
+- Project-scoped context
+- Goals with temporal tracking
 
-- **MCP pattern**: Add new integrations by configuring MCP servers
-- **Context extraction**: LLM automatically extracts facts from tool responses
-- **Typed schemas**: Use Pydantic for all context data
-- **Test each feature**: Unit tests for context extraction and sync
+**Unchanged:**
+- MCP integration (Toggl, Linear, Trello)
+- File operation tools
+- Command execution
+- CLI interface
+- Tool confirmation system
+- Message auto-saving
 
-### Migration Path
+### No Breaking Changes
 
-This plan requires minimal changes to existing Simple Agent:
-- ✅ Keep all existing tools (file, command execution)
-- ✅ Keep CLI interface and UX
-- ✅ Keep tool registry system
-- ✅ Extend with new context system (additive)
-- ✅ Extend with new planning tools (additive)
-- ✅ Update system prompt (refinement)
-
-No breaking changes needed.
-
----
-
-## Success Indicators
-
-### ✅ Phase 1 Achievements (Current State)
-
-1. **Automatic context extraction from interactions:**
-   - ✅ Context builds automatically as user works
-   - ✅ File operations, tool calls extracted to context
-   - ✅ View context with `/show-context`, clear with `/clear-context`
-
-2. **Context-aware conversations:**
-   - ✅ System prompt includes recent context (24h)
-   - ✅ Agent references previous work naturally
-   - ✅ MCP tools (Toggl, Trello, Linear) available on-demand
-
-3. **Core capabilities retained:**
-   - ✅ File operations (read, write, patch)
-   - ✅ Command execution
-   - ✅ Interactive CLI with rich features
-
-### Phase 2 Target (Next)
-
-1. **Organic context building through interactions:**
-   ```
-   > What's on my Toggl timer?
-   [Agent calls MCP tool, shows result, context extracted automatically]
-
-   > What Linear issues do I have?
-   [Agent calls MCP tool, shows issues, context extracted automatically]
-
-   > What should I work on next?
-   [Agent uses accumulated context from previous interactions]
-   ```
-
-2. **Context-enriched recommendations:**
-   ```
-   > what should I work on next?
-
-   Agent: "Based on your context:
-   - You have 90 minutes before standup (calendar)
-   - Already spent 2h 15m on API refactor today (Toggl)
-   - Linear sprint ends in 2 days with 3 tickets left
-   - Urgent Trello card: Deploy v2.0
-
-   Recommendation: Switch to Linear ticket ENG-456 (auth bug)
-
-   Reasoning:
-   - Sprint deadline approaching
-   - You've hit context-switch point on API work
-   - 90 min is enough to make meaningful progress
-   - Unblocks deployment (Trello dependency)"
-   ```
-
-The assistant becomes truly context-aware and proactive through MCP integrations.
+Users can:
+- Continue using all existing tools
+- Use MCP integrations
+- Work with files and commands
+- New `/compress` is purely additive
 
 ---
 
 ## Next Actions
 
-**Immediate (Phase 2, Step 5):**
-1. Test current context extraction with MCP tools
-2. Enhance `_determine_context_type()` for MCP-specific patterns
-3. Verify organic context building through natural interactions
-4. Validate that accumulated context improves "what's next" recommendations
+### Immediate (Phase 1, Step 1-3)
 
-**Near-term (Phase 2, Step 6):**
-1. Add Google Calendar MCP server to configuration
-2. Test time-aware recommendations with calendar data
-3. Verify calendar events extracted to context
+1. [ ] Remove auto-extraction system
+   - Delete `context/extractor.py`
+   - Remove background thread from `agent.py`
+   - Remove context-specific commands
 
-**Future (Phase 3):**
-1. Implement goal inference from documents (vision.md, plan.md, etc.)
-2. Add `/set-goal` with user confirmation for inferred goals
-3. Implement `/track-goal` for progress visibility
-4. Add proactive goal suggestions based on current work
+2. [ ] Implement markdown context loading
+   - Read `context/*.md` at startup
+   - Inject into system prompt
+   - Test with sample context files
+
+3. [ ] Build `/compress` command
+   - Create compression system prompt
+   - Use Read/Edit/Write tools for updates
+   - Archive sessions
+   - Clear messages
+
+4. [ ] Update documentation
+   - Update CLAUDE.md with new approach
+   - Add context file templates
+   - Document compression workflow
+
+### Near-term (Phase 1, Step 4)
+
+5. [ ] Project-scoped context
+   - Load from `<cwd>/context/`
+   - Support global context optionally
+   - Test with multiple projects
+
+### Future (Phase 2-3)
+
+6. [ ] Optimize context loading
+7. [ ] Enhanced compression
+8. [ ] Calendar integration
+9. [ ] Goal progress tracking
+10. [ ] Proactive suggestions

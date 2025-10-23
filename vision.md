@@ -7,7 +7,9 @@ Transform Simple Agent from a general-purpose CLI assistant into a specialized *
 ## Core Philosophy
 
 - **Simple and lightweight**: Maintain Unix philosophy principles
-- **Context-aware**: Build rich context from multiple sources (calendar, Jira, Linear, files, projects)
+- **Context-aware**: Build rich, human-readable context from conversations and integrations
+- **Context as narrative**: Structured markdown that preserves relationships and strategic thinking
+- **Token efficient**: Compress conversations to context, keep sessions fresh
 - **Actionable**: Focus on helping determine *what's next* rather than just completing tasks
 - **Iterative**: Start simple, add complexity incrementally
 
@@ -99,11 +101,38 @@ This leverages fresh work and fits your available time."
 
 ### 1. Context is King
 
-Rich, multi-source context enables intelligent recommendations:
-- **Always-on context gathering**: Passively collect from integrations
-- **Explicit context building**: Allow manual context addition
-- **Context persistence**: Remember project details, goals, preferences
-- **Context relevance**: Smart filtering to surface what matters
+Rich, human-readable context enables intelligent recommendations:
+
+**Context as Structured Narrative:**
+- Context stored as markdown in `context/` directories (visible, editable)
+- Preserves relationships between concepts, not just atomic facts
+- Hierarchical organization (business.md, strategy.md, goals.md)
+- Project-scoped: different context for different projects
+- Version-controllable: can commit context to git
+
+**Compression Workflow:**
+- Conversations naturally accumulate in message history
+- User triggers `/compress` at natural breakpoints (after decisions, end of session)
+- Agent reviews full conversation, updates context files interactively
+- Archives complete session for reference
+- Clears messages for fresh start
+- 3-4x token reduction vs. continuous message growth
+
+**Goals with Temporal Tracking:**
+```markdown
+- [ ] Launch v2.0 by Q1 2026
+  - Started: September 2025
+  - Deadline: March 2026
+  - Elapsed: 2 months / 6 months (33%)
+  - Progress: 4/10 features complete (40%)
+  - Remaining: 6 features in 4 months
+```
+
+**Context Sources:**
+- Manual compression of conversations (primary)
+- MCP integrations (Toggl, Linear, Trello, Calendar)
+- File operations and command executions
+- Strategic decisions and their reasoning
 
 ### 2. Proactive but Not Intrusive
 
@@ -144,10 +173,12 @@ Keep what works from Simple Agent:
 ### New Components
 
 **Context System:**
-- Context aggregation layer via automatic LLM extraction
-- Context storage and retrieval (disk-based JSON)
-- Context injection into system prompt
-- Context relevance scoring
+- Structured markdown context files in visible `context/` directories
+- Interactive compression workflow using existing file tools (Read/Edit/Write)
+- Session archiving to `context-archive/YYYY-MM-DD-topic.md`
+- Context injection into system prompt (optimized as context grows)
+- Project-scoped context (different projects = different context)
+- Human-readable and editable (no opaque JSON)
 
 **MCP Integration Layer:**
 - Model Context Protocol (MCP) server support
@@ -156,10 +187,12 @@ Keep what works from Simple Agent:
 - Extensible to any MCP-compatible service
 
 **Goal Management:**
-- Goal definition and storage
-- Progress tracking
-- Milestone decomposition
-- Success metrics
+- Goals stored as markdown sections in `context/goals.md`
+- Hierarchical: immediate (weeks) → mid-term (months) → long-term (years)
+- Temporal tracking: start dates, deadlines, elapsed time, progress %
+- Checkboxes for completion tracking
+- Agent reads and updates during compression
+- No special commands needed (just edit the markdown)
 
 **Recommendation Engine:**
 - LLM-based prioritization with reasoning
@@ -177,25 +210,29 @@ Keep what works from Simple Agent:
 
 ### Start Simple, Iterate
 
-**Phase 1: Foundation**
-- Basic context gathering from 1-2 sources
-- Simple "what's next" recommendations
-- Manual context refresh
+**Phase 1: Context Representation** (Current Focus)
+- Structured markdown context in `context/` directories
+- Interactive `/compress` workflow with file tools
+- Session archiving for reference
+- Goals with temporal tracking
+- Token-efficient conversation sessions
 
-**Phase 2: Intelligence**
-- Multi-source context via MCP tools
-- Smart prioritization with reasoning
-- Organic context building through natural interaction
+**Phase 2: Context Intelligence**
+- Optimize context loading (full → sections → semantic search)
+- Enhanced compression prompts
+- Smart compression timing suggestions
+- Context organization patterns
 
-**Phase 3: Proactive**
-- Goal tracking and progress
-- Proactive suggestions
-- Pattern recognition
+**Phase 3: Integration Enrichment**
+- Calendar integration for time-awareness
+- Additional MCP integrations as needed
+- Richer goal progress tracking
+- Proactive suggestions based on context
 
 **Phase 4: Advanced**
 - Predictive recommendations
-- Learning from outcomes
-- Cross-project optimization
+- Pattern recognition across projects
+- Cross-project context insights
 
 ### Iteration Cadence
 
@@ -228,6 +265,40 @@ Ideas for later exploration:
 - Mobile companion for on-the-go context
 - Visualization dashboard for progress
 
+## Key Innovation: Compression Workflow
+
+The compression workflow is what makes context-aware AI sustainable:
+
+**The Problem:**
+- Conversations accumulate message history linearly
+- Token costs grow with every interaction
+- Long message histories = expensive API calls
+- Atomic fact extraction creates noise, not signal
+- Strategic thinking and relationships get lost
+
+**The Solution:**
+- Conversations build naturally in message history
+- User compresses at decision points (`/compress`)
+- Agent reviews FULL conversation for narrative and insights
+- Updates structured markdown context interactively (using Read/Edit/Write tools)
+- Archives complete session for reference
+- Clears messages for fresh start
+
+**The Result:**
+- 3-4x token reduction (5KB context vs 20KB+ messages)
+- Preserves strategic thinking and relationships
+- Human-readable, editable context files
+- Project-scoped (different context per project)
+- Version-controllable with git
+- Agent maintains continuity across sessions
+
+**Example Compression:**
+```
+22KB conversation → 5KB structured context + archived session
+Next session starts with 5KB context instead of 22KB history
+Sustainable for long-term projects
+```
+
 ## Anti-Goals
 
 What this is NOT:
@@ -236,11 +307,14 @@ What this is NOT:
 - Not a task tracker (we help pick from existing tasks)
 - Not a heavy desktop app (stays lightweight CLI)
 - Not AI doing work for you (AI helping you decide work)
+- Not automatic context extraction (user-controlled compression)
 
 ---
 
 ## Summary
 
-The Execution Efficiency Assistant transforms Simple Agent into a context-aware decision support tool that helps answer "what should I do next?" for both immediate tasks and long-term goals. It maintains simplicity and speed while adding intelligence through rich context integration and smart prioritization.
+The Execution Efficiency Assistant transforms Simple Agent into a context-aware decision support tool that helps answer "what should I do next?" for both immediate tasks and long-term goals.
 
-The assistant becomes your executive function partner: gathering context, suggesting priorities, tracking progress, and helping you maintain momentum on what matters most.
+**Key innovation:** Interactive compression workflow that converts rich conversations into structured, human-readable context while maintaining token efficiency. Context is stored as markdown in visible `context/` directories, preserving strategic thinking and relationships between concepts.
+
+The assistant becomes your executive function partner: building context through natural conversation, compressing insights at decision points, tracking goals with temporal awareness, and helping you maintain momentum on what matters most—all while staying lightweight and sustainable for long-term use.

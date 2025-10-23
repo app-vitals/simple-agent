@@ -24,17 +24,19 @@ Additional agent interaction principles:
 ## Features
 
 ### Core Capabilities
-- **Context-Aware Assistance** - Automatically remembers your work context (files, tasks, time tracking)
+- **Context-Aware Assistance** - Builds structured, human-readable context through interactive compression
 - **Intelligent Recommendations** - Ask "what should I work on next?" for prioritization help
 - **Natural Interaction** - Just type your request in plain language
 - **File Operations** - Read, write, and edit files with AI assistance
 - **Command Execution** - Run shell commands with confirmation
 
 ### Context & Integrations
-- **Automatic Context Extraction** - Learns from your interactions to build context
+- **Interactive Compression Workflow** - Convert conversations to structured markdown context files (3-4x token reduction)
+- **Human-Readable Context** - Visible `context/` directory with markdown files you can edit
+- **Project-Scoped Context** - Different context for different projects
 - **MCP Integration Support** - Connect to external services via Model Context Protocol
-  - Time tracking services
-  - Task management tools
+  - Time tracking services (Toggl)
+  - Task management tools (Trello, Linear)
   - Calendar applications
   - Issue trackers
   - Any MCP-compatible service
@@ -44,7 +46,7 @@ Additional agent interaction principles:
 - Multi-line input support with backslash continuation
 - History navigation with arrow keys
 - Syntax highlighting and styled output
-- Slash commands: `/help`, `/exit`, `/clear`, `/show-context`, `/clear-context`
+- Slash commands: `/help`, `/exit`, `/clear`, `/compress`
 
 ### Technical
 - Claude API integration via LiteLLM
@@ -180,14 +182,18 @@ Reasoning:
 ### Context Management
 
 ```
-> /show-context
-[Displays recent work context and integrations]
+> /compress
+[Reviews conversation, updates context/ files interactively]
+[Archives session to context-archive/]
+[Clears messages for fresh start]
 
-> /clear-context
-[Clears stored context]
+> /clear
+[Clears message history without compression]
 
 > /help
 [Shows all available commands]
 ```
+
+Context is stored in visible `context/` directory as markdown files you can edit directly.
 
 Press Tab for command completion and use arrow keys for history navigation.

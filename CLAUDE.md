@@ -4,12 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Simple Agent is an **execution efficiency assistant** that helps users optimize daily task execution through context-aware AI guidance. It's a CLI tool built on Unix philosophy principles that answers "what should I work on next?" based on automatically extracted context from user interactions and external integrations.
+Simple Agent is an **execution efficiency assistant** that helps users optimize daily task execution through context-aware AI guidance. It's a CLI tool built on Unix philosophy principles that answers "what should I work on next?" based on structured, human-readable context built through interactive compression workflows and external integrations.
+
+**Key Innovation**: Interactive compression workflow that converts rich conversations into structured markdown context files while maintaining token efficiency (3-4x reduction).
 
 ### Vision & Roadmap
 
-- **vision.md**: Describes the transformation to an execution efficiency assistant with daily and long-term goal capabilities
-- **plan.md**: Implementation roadmap showing Phase 1 (context system, MCP integration) is complete; Phase 2 (context sync) is current focus
+- **vision.md**: Describes the execution efficiency assistant with compression-first context approach, daily execution, and long-term goal tracking
+- **plan.md**: Implementation roadmap focused on Phase 1 (context representation & compression), Phase 2 (context intelligence), Phase 3 (goal tracking)
 
 ## Development Commands
 
@@ -41,31 +43,53 @@ python -m simple_agent # Direct module execution
 
 1. **CLI (cli/prompt.py)** - User input via prompt_toolkit, handles slash commands
 2. **Agent (core/agent.py)** - Main loop that:
+   - Loads context from `context/*.md` files at startup
    - Builds dynamic system prompt with injected context
    - Sends messages to LLM with tool descriptions
    - Processes tool calls through ToolHandler
-   - Extracts context after each interaction (background thread)
+   - Handles `/compress` command for interactive context updates
 3. **Tool Handler (core/tool_handler.py)** - Manages tool execution with user confirmation
 4. **LLM Client (llm/client.py)** - Claude API integration via LiteLLM
 
 ### Context System (Key Innovation)
 
-The context system automatically builds user work context:
+The context system uses **interactive compression** to build structured, human-readable context:
 
-1. **Context Extractor (context/extractor.py)**:
-   - Runs after each agent interaction in background thread
-   - Uses LLM to extract facts from user messages and tool calls
-   - Stores facts in ContextManager with appropriate types
+**File Structure:**
+```
+~/src/<project>/
+├── context/                    # Visible, editable markdown files
+│   ├── business.md            # Clients, team, revenue
+│   ├── strategy.md            # Positioning, decisions, tradeoffs
+│   ├── goals.md               # Hierarchical goals with temporal tracking
+│   └── decisions.md           # Key decisions with reasoning
+├── context-archive/           # Archived conversation sessions
+│   └── 2025-10-23-session.md
+└── .simple-agent/
+    ├── messages.json          # Current session (cleared after compression)
+    └── mcp_servers.json
+```
 
-2. **Context Manager (context/manager.py)**:
-   - Disk-based JSON storage at `.simple-agent/context.json`
-   - Auto-cleanup of entries older than 7 days
-   - Context types: MANUAL, FILE, CALENDAR, TASK, TIME_TRACKING, GOAL
+**Compression Workflow (`/compress` command)**:
+1. User triggers compression at natural breakpoints (after decisions, end of session)
+2. Agent reviews FULL conversation history for narrative and insights
+3. Agent uses Read/Edit/Write tools to update context files interactively
+4. User approves each change (standard tool confirmation)
+5. Session archived to `context-archive/YYYY-MM-DD-topic.md`
+6. Messages cleared for fresh start
 
-3. **System Prompt Injection (core/agent.py:_build_system_prompt)**:
-   - Dynamically injects recent context (24h) into system prompt
-   - Agent naturally references context in responses
-   - No explicit tool calls needed for context awareness
+**Key Benefits:**
+- Preserves strategic thinking and relationships (not just atomic facts)
+- 3-4x token reduction (5KB context vs 20KB+ messages)
+- Human-readable, editable markdown files
+- Project-scoped (different context per directory)
+- Version-controllable with git
+
+**Context Loading (core/agent.py:_build_system_prompt)**:
+- Reads `context/*.md` files at agent startup
+- Injects full context into system prompt
+- Agent naturally references context in responses
+- Will optimize to section-based loading as context grows
 
 ### Tool Registry Pattern
 
@@ -104,15 +128,6 @@ Tools are registered globally via `tools/registry.py`:
 
 ## Testing Patterns
 
-### Context Extraction Tests
-Context extraction uses LLM calls, so tests use `unittest.mock.patch`:
-```python
-@patch("simple_agent.context.extractor.LLMClient")
-def test_extract_context(mock_llm_client):
-    # Mock LLM response with tool call containing facts
-    # Verify facts stored in context manager
-```
-
 ### Tool Tests
 File and command tools have dedicated test modules:
 - `tests/tools/files/` - File operation tools
@@ -129,11 +144,21 @@ def disable_mcp():
 
 ## Key Implementation Details
 
-### Dynamic System Prompt
-The system prompt is rebuilt on **every LLM request** to include fresh context. This happens in `agent.py:_build_system_prompt()` called from `_handle_ai_request()`.
+### Dynamic System Prompt with Context Loading
+The system prompt is rebuilt on **every LLM request** to include context from markdown files:
+- `agent.py:_build_system_prompt()` called from `_handle_ai_request()`
+- Reads all `context/*.md` files at startup
+- Injects full context into system prompt
+- As context grows, will optimize to section-based loading
 
-### Background Context Extraction
-After each interaction, context extraction runs in a daemon thread to avoid blocking the UI. If extraction fails, it shows a warning but doesn't crash.
+### Compression Workflow
+The `/compress` command triggers an interactive workflow:
+- Agent reviews full conversation history
+- Uses Read/Edit/Write tools to update context files
+- User confirms each change (standard tool confirmation)
+- Archives session to `context-archive/YYYY-MM-DD-topic.md`
+- Clears `messages.json` for fresh start
+- Achieves 3-4x token reduction
 
 ### Tool Confirmation Flow
 1. Agent calls tool → ToolHandler checks `requires_confirmation()`
@@ -150,11 +175,17 @@ MCP tools are discovered at startup:
 
 ## File Locations
 
-User data stored in `.simple-agent/` (in current working directory):
-- `context.json` - Extracted context facts
-- `messages.json` - Conversation history
-- `mcp_servers.json` - MCP server configuration
-- `mcp-{server-name}.log` - MCP server logs
+**Visible Context Files** (in current working directory):
+- `context/` - Structured markdown context files (business.md, strategy.md, goals.md, etc.)
+- `context-archive/` - Archived conversation sessions
+
+**Hidden Implementation** (in current working directory):
+- `.simple-agent/messages.json` - Current conversation session
+- `.simple-agent/mcp_servers.json` - MCP server configuration
+- `.simple-agent/mcp-{server-name}.log` - MCP server logs
+
+**Optional Global Context**:
+- `~/.simple-agent/personal.md` - Global personal context (work style, preferences, etc.)
 
 ## Common Patterns
 
@@ -164,18 +195,44 @@ User data stored in `.simple-agent/` (in current working directory):
 3. Specify parameters, description, confirmation requirements
 4. Write tests in `tests/tools/`
 
-### Adding Context Sync for New MCP Source
-Future work (Phase 2) will add `context/sources/mcp_sync.py` to:
-1. Query MCP servers for current state
-2. Extract relevant facts (time tracking, tasks, calendar)
-3. Store in ContextManager with appropriate types
-4. Triggered by `/sync-context` command
+### Compressing a Session
 
-### Extending Context Types
-Add new types to `context/schema.py:ContextType` enum, then update:
-- `extractor.py:_determine_context_type()` - Detection logic
-- `extractor.py:get_recent_context_summary()` - Display formatting
-- `prompt.py:show_context()` - CLI display
+User triggers compression at natural breakpoints:
+```bash
+/compress                           # Standard compression
+/compress focus on business goals   # With specific instructions
+```
+
+Agent workflow:
+1. Reviews full conversation history
+2. Uses Read tool to load existing context files
+3. Uses Edit tool to update sections (user confirms each)
+4. Uses Write tool to archive session
+5. Clears messages for fresh start
+
+### Adding New Context Files
+
+Context files are just markdown - create them as needed:
+- `context/technical.md` - Technical decisions, architecture
+- `context/people.md` - Key relationships, collaborators
+- `context/ideas.md` - Unorganized ideas, brainstorming
+
+Agent will discover and read any `.md` files in `context/` directory.
+
+### Goals with Temporal Tracking
+
+Include progress tracking in `context/goals.md`:
+```markdown
+## Mid-term (6 months)
+- [ ] Launch product v2.0 by Q1 2026
+  - Started: September 2025
+  - Deadline: March 2026
+  - Elapsed: 2 months / 6 months (33%)
+  - Progress: 4/10 features complete (40%)
+  - Remaining: 6 features in 4 months
+```
+
+Agent updates during compression based on conversation.
 
 ## Code Guidelines
 
