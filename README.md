@@ -52,7 +52,7 @@ Additional agent interaction principles:
 - Claude API integration via LiteLLM
 - Stateful conversation management
 - Tool-based architecture with explicit permissions
-- 88%+ test coverage
+- 85%+ test coverage
 
 ## Development
 
@@ -64,7 +64,7 @@ uv add <package-name>
 
 # Run code quality tools
 ./lint.sh  # Black, Ruff, MyPy
-./test.sh  # Pytest with 90% coverage requirement
+./test.sh  # Pytest with 85% coverage requirement
 ```
 
 Continuous integration runs on all PRs and pushes to main.

@@ -1,13 +1,7 @@
-"""Context management system for execution efficiency."""
+"""Context system - now uses markdown files in context/ directory.
 
-from simple_agent.context.globals import get_context_manager, reset_context_manager
-from simple_agent.context.manager import ContextManager
-from simple_agent.context.schema import ContextEntry, ContextType
+The old JSON-based context system has been removed in favor of
+human-readable markdown files stored in <cwd>/context/
+"""
 
-__all__ = [
-    "ContextManager",
-    "ContextEntry",
-    "ContextType",
-    "get_context_manager",
-    "reset_context_manager",
-]
+__all__: list[str] = []

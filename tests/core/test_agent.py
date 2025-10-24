@@ -419,12 +419,10 @@ def test_get_status_message_no_request_time(
 
 def test_build_system_prompt_no_context(agent: Agent, mocker: MockerFixture) -> None:
     """Test building system prompt when no context is available."""
-    # Mock the context extractor to return no context
-    mock_extractor = mocker.MagicMock()
-    mock_extractor.get_recent_context_summary.return_value = (
-        "No recent context available."
+    # Mock the context loader to return no context
+    mock_loader = mocker.patch(
+        "simple_agent.core.agent.load_context_from_directory", return_value=""
     )
-    agent.context_extractor = mock_extractor
 
     # Build the system prompt
     prompt = agent._build_system_prompt()
@@ -435,22 +433,24 @@ def test_build_system_prompt_no_context(agent: Agent, mocker: MockerFixture) -> 
     # Verify it does NOT contain context section
     assert "## Current Context" not in prompt
 
-    # Verify extractor was called
-    mock_extractor.get_recent_context_summary.assert_called_once_with(max_age_hours=24)
+    # Verify loader was called
+    mock_loader.assert_called_once()
 
 
 def test_build_system_prompt_with_context(agent: Agent, mocker: MockerFixture) -> None:
     """Test building system prompt with context available."""
-    # Mock the context extractor to return some context
-    mock_extractor = mocker.MagicMock()
-    mock_extractor.get_recent_context_summary.return_value = """Recent Context:
+    # Mock the context loader to return some context
+    mock_context = """# Context from goals.md
 
-Task:
-  - Working on API refactor PR #234
+## Current Sprint
+- Working on API refactor PR #234
 
-File:
-  - Edited src/api/routes.py"""
-    agent.context_extractor = mock_extractor
+## Recent Work
+- Edited src/api/routes.py"""
+
+    mock_loader = mocker.patch(
+        "simple_agent.core.agent.load_context_from_directory", return_value=mock_context
+    )
 
     # Build the system prompt
     prompt = agent._build_system_prompt()
@@ -465,10 +465,10 @@ File:
 
     # Verify it contains context-aware instructions
     assert "what should I work on next?" in prompt
-    assert "Consider time constraints from calendar entries" in prompt
+    assert "Consider time constraints and deadlines" in prompt
 
-    # Verify extractor was called
-    mock_extractor.get_recent_context_summary.assert_called_once_with(max_age_hours=24)
+    # Verify loader was called
+    mock_loader.assert_called_once()
 
 
 def test_handle_ai_request_refreshes_system_prompt(
@@ -484,13 +484,15 @@ def test_handle_ai_request_refreshes_system_prompt(
     type(mock_cli).mode = mocker.PropertyMock(return_value=CLIMode.NORMAL)
     agent.cli = mock_cli
 
-    # Mock the context extractor to return different context
-    mock_extractor = mocker.MagicMock()
-    mock_extractor.get_recent_context_summary.return_value = """Recent Context:
+    # Mock the context loader to return some context
+    mock_context = """# Context from goals.md
 
-Task:
-  - New task from context"""
-    agent.context_extractor = mock_extractor
+## Current Task
+- New task from context"""
+
+    mock_loader = mocker.patch(
+        "simple_agent.core.agent.load_context_from_directory", return_value=mock_context
+    )
 
     # Create a mock response with no tool calls
     mock_response = mocker.MagicMock()
@@ -500,8 +502,8 @@ Task:
     # Call the method
     agent._handle_ai_request("Hello")
 
-    # Verify _build_system_prompt was indirectly called via get_recent_context_summary
-    mock_extractor.get_recent_context_summary.assert_called()
+    # Verify context loader was called
+    mock_loader.assert_called()
 
     # Verify _send_llm_request was called with messages that include system prompt
     call_args = agent._send_llm_request.call_args[0][0]  # type: ignore

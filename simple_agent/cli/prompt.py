@@ -18,7 +18,6 @@ from rich.padding import Padding
 
 from simple_agent.cli.completion import Completer
 from simple_agent.config import config
-from simple_agent.context import get_context_manager
 from simple_agent.display import (
     console,
     display_error,
@@ -141,8 +140,7 @@ Help you execute on short-term tasks and long-term goals.
 [bold]Commands:[/bold]
 • [green]/help[/green]:          Show this help message
 • [green]/clear[/green]:         Clear the terminal screen and conversation history
-• [green]/show-context[/green]:  View recent context
-• [green]/clear-context[/green]: Clear stored context
+• [green]/compress[/green]:      Compress conversation to context files
 • [green]/mcp[/green]:           View configured MCP servers
 • [green]/exit[/green]:          Exit the agent
 • [green]![/green]:              Run a shell command directly
@@ -233,51 +231,6 @@ class CLI:
         """Display help information."""
         console.print(Padding(HELP_TEXT, (0, 0, 0, 2)))
 
-    def show_context(self) -> None:
-        """Display current context."""
-        context_manager = get_context_manager()
-        entries = context_manager.get_context(max_age_hours=24, limit=50)
-
-        if not entries:
-            console.print(
-                Padding("[dim]No recent context available.[/dim]", (0, 0, 0, 2))
-            )
-            return
-
-        console.print(
-            Padding(
-                "\n[bold cyan]Recent Context (last 24 hours):[/bold cyan]\n",
-                (0, 0, 0, 2),
-            )
-        )
-
-        # Group by type
-        by_type: dict[str, list[tuple[str, str]]] = {}
-        for entry in entries:
-            type_name = entry.type.value.replace("_", " ").title()
-            if type_name not in by_type:
-                by_type[type_name] = []
-            # Format timestamp
-            time_str = entry.timestamp.strftime("%H:%M")
-            by_type[type_name].append((time_str, entry.content))
-
-        # Display each type
-        for type_name, items in by_type.items():
-            console.print(Padding(f"[bold]{type_name}:[/bold]", (0, 0, 0, 2)))
-            for time_str, content in items[:10]:  # Max 10 per type
-                console.print(
-                    Padding(f"  [dim]{time_str}[/dim] {content}", (0, 0, 0, 2))
-                )
-            console.print()
-
-    def clear_context(self) -> None:
-        """Clear all stored context."""
-        context_manager = get_context_manager()
-        count = context_manager.clear_context()
-        console.print(
-            Padding(f"[green]Cleared {count} context entries.[/green]", (0, 0, 0, 2))
-        )
-
     def show_mcp_servers(self) -> None:
         """Display configured MCP servers and their status."""
         if not config.mcp_servers:
@@ -346,8 +299,7 @@ class CLI:
 ┃                                                ┃
 ┃ /help           for available commands         ┃
 ┃ /clear          clear screen & conversation    ┃
-┃ /show-context   view recent context            ┃
-┃ /clear-context  reset context                  ┃
+┃ /compress       compress to context files      ┃
 ┃ /mcp            view MCP servers               ┃
 ┃ /exit           to quit                        ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -392,11 +344,12 @@ class CLI:
                             )
                         )
                     continue
-                elif user_input.lower() == "/show-context":
-                    self.show_context()
-                    continue
-                elif user_input.lower() == "/clear-context":
-                    self.clear_context()
+                elif user_input.lower().startswith("/compress"):
+                    # Extract optional instructions after /compress
+                    parts = user_input.split(maxsplit=1)
+                    instructions = parts[1] if len(parts) > 1 else ""
+                    # Pass to process_input with special marker
+                    self.process_input(f"__COMPRESS__{instructions}")
                     continue
                 elif user_input.lower() == "/mcp":
                     self.show_mcp_servers()

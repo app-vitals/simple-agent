@@ -2,16 +2,17 @@
 
 import contextlib
 import json
-import threading
 import time
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 from rich.markdown import Markdown
 
 from simple_agent.cli.prompt import CLI, CLIMode
 from simple_agent.config import config
-from simple_agent.context.extractor import ContextExtractor
+from simple_agent.context.compression_prompt import get_compression_prompt
+from simple_agent.context.loader import load_context_from_directory
 from simple_agent.core.tool_handler import ToolHandler, get_tools_for_llm
 from simple_agent.display import (
     display_error,
@@ -77,7 +78,6 @@ class Agent:
         self.llm_client = LLMClient()
         self.tool_handler = ToolHandler()
         self.request_start_time: float | None = None
-        self.context_extractor = ContextExtractor(llm_client=self.llm_client)
 
         # Initialize MCP servers if configured and not disabled
         self.mcp_manager: MCPServerManager | None = None
@@ -125,22 +125,21 @@ class Agent:
         Returns:
             System prompt with recent context included
         """
-        # Start with base prompt
-        prompt = SYSTEM_PROMPT
+        # Start with base prompt and add current date
+        today = datetime.now().strftime("%Y-%m-%d")
+        prompt = f"Today's date: {today}\n\n{SYSTEM_PROMPT}"
 
-        # Get recent context summary
-        context_summary = self.context_extractor.get_recent_context_summary(
-            max_age_hours=24
-        )
+        # Load markdown context from context/*.md files
+        context = load_context_from_directory()
 
         # Only inject context if there is some
-        if context_summary and "No recent context available" not in context_summary:
+        if context:
             # Add a section with current context
-            prompt += f"\n\n## Current Context\n\n{context_summary}\n\n"
+            prompt += f"\n\n## Current Context\n\n{context}\n\n"
             prompt += """Use this context to provide more relevant and personalized assistance:
 - When asked "what should I work on next?", reference this context
-- Consider time constraints from calendar entries
-- Be aware of current tasks and projects
+- Consider time constraints and deadlines
+- Be aware of current projects, goals, and decisions
 - Suggest next steps that align with recent work patterns"""
 
         return prompt
@@ -250,7 +249,15 @@ class Agent:
         """
         try:
             self.request_start_time = time.monotonic()
-            self._handle_ai_request(user_input)
+
+            # Check if this is a compression request
+            if user_input.startswith("__COMPRESS__"):
+                # Extract optional user instructions
+                instructions = user_input[len("__COMPRESS__") :].strip()
+                self._handle_compression(instructions)
+            else:
+                self._handle_ai_request(user_input)
+
             self.request_start_time = None
         except KeyboardInterrupt:
             # Handle Ctrl+C gracefully
@@ -327,8 +334,6 @@ class Agent:
                     else:
                         display_error("Empty response from LLM")
 
-                    # Extract context from this interaction
-                    self._extract_context()
                     return
 
                 # Display any text content alongside tool calls
@@ -362,25 +367,98 @@ class Agent:
             # If we've reached the maximum iterations, warn the user
             display_warning("Maximum tool call iterations reached")
 
-        # Extract context from this interaction (after live context exits)
-        self._extract_context()
+    def _handle_compression(self, user_instructions: str = "") -> None:
+        """Handle compression of conversation to context files.
 
-    def _extract_context(self) -> None:
-        """Extract and store context from the recent interaction in the background."""
-        # Make a copy of the messages to avoid race conditions
-        messages_copy = self.messages.get_all().copy()
+        Args:
+            user_instructions: Optional user-provided compression instructions
+        """
+        # Get the full conversation history
+        conversation_history = self.messages.get_all()
 
-        def extract_in_background() -> None:
-            try:
-                # Extract context from the conversation messages
-                self.context_extractor.extract_from_messages(messages_copy)
-            except Exception as e:
-                # Show warning but don't crash
-                display_warning(f"Context extraction failed: {e}")
+        if not conversation_history:
+            display_info("No conversation to compress.")
+            return
 
-        # Run extraction in a background thread
-        thread = threading.Thread(target=extract_in_background, daemon=True)
-        thread.start()
+        display_info("Starting compression workflow...")
+
+        # Build compression messages
+        compression_messages = get_compression_prompt(
+            conversation_history=conversation_history,
+            user_instructions=user_instructions,
+        )
+
+        # Process compression with tool calls (similar to _handle_ai_request)
+        max_iterations = 20
+        iteration = 0
+
+        # Use the live context with dynamic status updates
+        with live_context(
+            status_callback=self._get_status_message, update_interval=0.1
+        ) as live:
+            while iteration < max_iterations:
+                # Update stage message based on current iteration
+                if iteration == 0:
+                    set_stage_message("Reviewing conversation...")
+                else:
+                    set_stage_message("Updating context files...")
+
+                # Send to LLM
+                response = self._send_llm_request(compression_messages)
+
+                if not response:
+                    display_error("Failed to get compression response")
+                    return
+
+                # Extract content and check for tool calls
+                content, tool_calls = self.llm_client.get_message_content(response)
+
+                # If there are no tool calls, compression is done
+                if not tool_calls:
+                    # Update stage to show completion
+                    set_stage_message("Complete")
+                    time.sleep(0.12)
+                    # Exit the live context before displaying response
+                    live.stop()
+
+                    # Display the final response
+                    if content:
+                        print_with_padding(Markdown(content), extra_line=True)
+
+                    # Clear the conversation messages after successful compression
+                    display_info("Clearing conversation history...")
+                    self.messages.clear()
+                    display_info("Compression complete!")
+                    return
+
+                # Display any text content alongside tool calls
+                if content:
+                    print_with_padding(
+                        Markdown(content), style="dim", newline_before=True
+                    )
+
+                # Handle tool calls
+                # Add the assistant's response with tool calls to compression messages
+                assistant_message = {"role": "assistant"}
+                assistant_message.update(response.choices[0].message.model_dump())
+                compression_messages.append(assistant_message)
+
+                # Process tool calls and get updated message list
+                updated_messages = self.tool_handler.process_tool_calls(
+                    tool_calls, compression_messages
+                )
+
+                # Update compression messages with tool results
+                compression_messages = updated_messages
+
+                # Increment iteration counter
+                iteration += 1
+
+            # Exit the live context before displaying warning
+            live.stop()
+
+            # If we've reached the maximum iterations, warn the user
+            display_warning("Maximum compression iterations reached")
 
     def _send_llm_request(self, messages: list[dict]) -> Any | None:
         """Send a request to the LLM.

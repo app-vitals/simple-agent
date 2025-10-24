@@ -146,18 +146,21 @@ def disable_mcp():
 
 ### Dynamic System Prompt with Context Loading
 The system prompt is rebuilt on **every LLM request** to include context from markdown files:
-- `agent.py:_build_system_prompt()` called from `_handle_ai_request()`
-- Reads all `context/*.md` files at startup
+- `agent.py:_build_system_prompt()` called from `_handle_ai_request()` and `_handle_compression()`
+- Includes **today's date** in format "Today's date: YYYY-MM-DD" for temporal awareness
+- Uses `context/loader.py:load_context_from_directory()` to read all `context/*.md` files
 - Injects full context into system prompt
 - As context grows, will optimize to section-based loading
 
 ### Compression Workflow
 The `/compress` command triggers an interactive workflow:
-- Agent reviews full conversation history
+- Compression prompt built in `context/compression_prompt.py`
+- Agent receives **full conversation history** to review
+- Agent reviews conversation for insights, decisions, strategic thinking
 - Uses Read/Edit/Write tools to update context files
 - User confirms each change (standard tool confirmation)
 - Archives session to `context-archive/YYYY-MM-DD-topic.md`
-- Clears `messages.json` for fresh start
+- Clears `messages.json` for fresh start via `_handle_compression()` in agent.py
 - Achieves 3-4x token reduction
 
 ### Tool Confirmation Flow
@@ -183,9 +186,6 @@ MCP tools are discovered at startup:
 - `.simple-agent/messages.json` - Current conversation session
 - `.simple-agent/mcp_servers.json` - MCP server configuration
 - `.simple-agent/mcp-{server-name}.log` - MCP server logs
-
-**Optional Global Context**:
-- `~/.simple-agent/personal.md` - Global personal context (work style, preferences, etc.)
 
 ## Common Patterns
 
