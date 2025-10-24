@@ -178,12 +178,16 @@ def test_write_file_confirmation_handler(
     assert result is True
 
 
+@patch("simple_agent.tools.files.diff_utils.Path")
 @patch("simple_agent.tools.files.diff_utils.get_file_diff_for_patch")
 @patch("simple_agent.tools.files.diff_utils.show_git_diff_confirmation")
 def test_patch_file_confirmation_handler(
-    mock_show_confirmation: MagicMock, mock_get_diff: MagicMock
+    mock_show_confirmation: MagicMock, mock_get_diff: MagicMock, mock_path: MagicMock
 ) -> None:
     """Test the patch_file confirmation handler."""
+    # Mock the file reading for validation
+    mock_path.return_value.read_text.return_value = "old content in file"
+
     # Mock the diff generation and confirmation
     mock_get_diff.return_value = "sample diff"
     mock_show_confirmation.return_value = True

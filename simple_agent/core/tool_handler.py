@@ -10,6 +10,7 @@ from simple_agent.display import (
     format_tool_args,
     get_confirmation,
 )
+from simple_agent.errors import ToolValidationError
 from simple_agent.tools import (
     execute_tool_call,
     get_confirmation_handler,
@@ -118,6 +119,15 @@ class ToolHandler:
                     "tool_call_id": tool_id,
                     "name": tool_name,
                     "content": str(result),
+                }
+                updated_messages.append(tool_response)
+            except ToolValidationError as e:
+                # Validation failed during confirmation - pass error to agent
+                tool_response = {
+                    "role": "tool",
+                    "tool_call_id": tool_id,
+                    "name": tool_name,
+                    "content": f"Error: {e}",
                 }
                 updated_messages.append(tool_response)
             except json.JSONDecodeError:

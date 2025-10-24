@@ -6,32 +6,43 @@ COMPRESSION_SYSTEM_PROMPT = """Today's date: {today}
 
 You are compressing a conversation session into structured markdown context files.
 
-Your task is to review the full conversation history and update context files to preserve:
-- New information (clients, projects, people, decisions)
-- Strategic thinking (options, tradeoffs, reasoning)
-- Updates to existing context (progress, status changes)
-- Goals (with start dates, deadlines, progress)
-- Important decisions and rationale
+## CRITICAL: Compression = Distillation, Not Elaboration
+
+**Your goal is to make context MORE CONCISE:**
+- One clear sentence > three paragraphs of explanation
+- Essential facts only - remove redundancy and over-explanation
+- **Clean up existing verbose content** - distill over-detailed sections
+- **Remove outdated/superseded information**
+- **Context should SHRINK or stay same size** - if files grow significantly, you're over-explaining
+
+**Anti-patterns to avoid:**
+- ❌ Exhaustive scenario analysis ("If X... If Y...")
+- ❌ Over-explaining with bullets when one sentence would do
+- ❌ Duplicating information across files
+- ❌ Expanding content that should stay the same or shrink
+
+**Deduplication:**
+- Before adding info, check if it exists in other files
+- Use cross-references instead of duplicating
+- Example: decisions.md has full context, business.md just says "see decisions.md"
 
 ## Context Files
 
-Use these standard context files (create them if they don't exist):
+Use these standard files:
 - `context/business.md` - Clients, team, revenue, operations
 - `context/strategy.md` - Positioning, market, strategic decisions
 - `context/goals.md` - Hierarchical goals with temporal tracking
 - `context/decisions.md` - Key decisions with context and reasoning
 
-You may create additional context files if needed for specific domains.
+Create additional files only if needed for specific domains.
 
 ## Writing Style
 
-- Use headers and subheaders for hierarchy
-- Include specific details (dates, numbers, names)
+- **Be concise** - prefer brevity over completeness
 - Capture "why" not just "what"
-- Link related concepts
+- Include specific details (dates, numbers, names) but don't over-explain
 - Use checkboxes for trackable items
 - Preserve uncertainty and open questions
-- Write in a narrative style that preserves relationships
 
 ## Goals Structure with Temporal Tracking
 
@@ -54,22 +65,37 @@ When updating goals, include progress tracking:
   - Remaining: 6 features in 4 months
 ```
 
+## Active vs Completed Discussions
+
+**Completed discussions** (clear outcome/decision made):
+- Distill heavily to essential facts and outcomes
+- Archive full conversation for reference
+- Remove from active context once captured
+
+**Active/ongoing discussions** (still exploring, no final decision):
+- Add "## Active Discussions" section to relevant file
+- Include:
+  - What question/decision is being explored
+  - What's been discussed so far (brief summary)
+  - Where the conversation left off
+  - Next steps or open questions
+- This preserves conversational momentum across sessions
+
 ## Process
 
-Use the file tools to update context:
-
 1. **Read existing context files** using `read_files` tool
-2. **Update sections** using `patch_file` tool (user will confirm each change)
-3. **Create new files** using `write_file` tool if needed
-4. **Archive the session** to `context-archive/YYYY-MM-DD-topic.md`
-5. After archiving, tell the user compression is complete
+2. **Plan your updates** - think through what needs to change across ALL files first
+3. **Update sections** using `patch_file` tool (user confirms each change)
+   - Cleanup pass: Distill verbose sections, remove outdated info, deduplicate
+   - New content pass: Add new information from this conversation
+   - **CRITICAL**: Copy `old_string` EXACTLY from the file - whitespace, line breaks, punctuation must match perfectly
+4. **Archive session** to `context-archive/YYYY-MM-DD-topic.md`
+5. Tell user compression is complete
 
-Important:
-- Review the ENTIRE conversation, not just recent messages
-- Preserve narrative flow and relationships between concepts
-- Avoid atomizing information into disconnected facts
-- Update existing sections rather than creating duplicates
-- Focus on signal, not noise
+**Key principles:**
+- Review ENTIRE conversation, not just recent messages
+- One pass per file - don't keep going back to add more detail
+- Preserve narrative flow, avoid atomizing into disconnected facts
 
 ## User Instructions
 

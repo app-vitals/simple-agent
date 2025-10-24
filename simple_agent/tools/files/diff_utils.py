@@ -14,6 +14,7 @@ from simple_agent.display import (
     format_tool_args,
     get_confirmation,
 )
+from simple_agent.errors import ToolValidationError
 from simple_agent.live_console import console
 
 
@@ -199,10 +200,28 @@ def patch_file_confirmation_handler(
 
     Returns:
         True if user confirms, False if denied
+
+    Raises:
+        ToolValidationError: If old_content not found in file
     """
     file_path = tool_args.get("file_path", "")
     old_content = tool_args.get("old_content", "")
     new_content = tool_args.get("new_content", "")
+
+    # Validate that old_content exists in file before showing diff
+    try:
+        path = Path(file_path)
+        current_content = path.read_text()
+        if old_content not in current_content:
+            error_msg = f"ERROR: Old content not found in {clean_path(file_path)}. The old_string must match exactly (including whitespace, line breaks, and punctuation). Please read the file again and copy the exact content you want to replace."
+            display_warning(error_msg)
+            raise ToolValidationError(error_msg)
+    except ToolValidationError:
+        raise
+    except Exception as e:
+        error_msg = f"ERROR: Could not read {clean_path(file_path)}: {e}"
+        display_warning(error_msg)
+        raise ToolValidationError(error_msg) from e
 
     # Generate a diff view for the patch
     diff_content = get_file_diff_for_patch(file_path, old_content, new_content)
